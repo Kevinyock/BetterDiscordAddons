@@ -2,7 +2,7 @@
  * @name EditServers
  * @author DevilBro
  * @authorId 278543574059057154
- * @version 2.3.7
+ * @version 2.3.8
  * @description Allows you to locally edit Servers
  * @invite Jx3TjNS
  * @donate https://www.paypal.me/MircoWittrien
@@ -13,25 +13,16 @@
  */
 
 module.exports = (_ => {
-	const config = {
-		"info": {
-			"name": "EditServers",
-			"author": "DevilBro",
-			"version": "2.3.7",
-			"description": "Allows you to locally edit Servers"
-		},
-		"changeLog": {
-			"fixed": {
-				"Server Header": "Fixed changes not appearing in the Server Header in the Channel List"
-			}
-		}
+	const changeLog = {
+		
 	};
 	
 	return !window.BDFDB_Global || (!window.BDFDB_Global.loaded && !window.BDFDB_Global.started) ? class {
-		getName () {return config.info.name;}
-		getAuthor () {return config.info.author;}
-		getVersion () {return config.info.version;}
-		getDescription () {return `The Library Plugin needed for ${config.info.name} is missing. Open the Plugin Settings to download it. \n\n${config.info.description}`;}
+		constructor (meta) {for (let key in meta) this[key] = meta[key];}
+		getName () {return this.name;}
+		getAuthor () {return this.author;}
+		getVersion () {return this.version;}
+		getDescription () {return `The Library Plugin needed for ${this.name} is missing. Open the Plugin Settings to download it. \n\n${this.description}`;}
 		
 		downloadLibrary () {
 			require("request").get("https://mwittrien.github.io/BetterDiscordAddons/Library/0BDFDB.plugin.js", (e, r, b) => {
@@ -44,7 +35,7 @@ module.exports = (_ => {
 			if (!window.BDFDB_Global || !Array.isArray(window.BDFDB_Global.pluginQueue)) window.BDFDB_Global = Object.assign({}, window.BDFDB_Global, {pluginQueue: []});
 			if (!window.BDFDB_Global.downloadModal) {
 				window.BDFDB_Global.downloadModal = true;
-				BdApi.showConfirmationModal("Library Missing", `The Library Plugin needed for ${config.info.name} is missing. Please click "Download Now" to install it.`, {
+				BdApi.showConfirmationModal("Library Missing", `The Library Plugin needed for ${this.name} is missing. Please click "Download Now" to install it.`, {
 					confirmText: "Download Now",
 					cancelText: "Cancel",
 					onCancel: _ => {delete window.BDFDB_Global.downloadModal;},
@@ -54,13 +45,13 @@ module.exports = (_ => {
 					}
 				});
 			}
-			if (!window.BDFDB_Global.pluginQueue.includes(config.info.name)) window.BDFDB_Global.pluginQueue.push(config.info.name);
+			if (!window.BDFDB_Global.pluginQueue.includes(this.name)) window.BDFDB_Global.pluginQueue.push(this.name);
 		}
 		start () {this.load();}
 		stop () {}
 		getSettingsPanel () {
 			let template = document.createElement("template");
-			template.innerHTML = `<div style="color: var(--header-primary); font-size: 16px; font-weight: 300; white-space: pre; line-height: 22px;">The Library Plugin needed for ${config.info.name} is missing.\nPlease click <a style="font-weight: 500;">Download Now</a> to install it.</div>`;
+			template.innerHTML = `<div style="color: var(--header-primary); font-size: 16px; font-weight: 300; white-space: pre; line-height: 22px;">The Library Plugin needed for ${this.name} is missing.\nPlease click <a style="font-weight: 500;">Download Now</a> to install it.</div>`;
 			template.content.firstElementChild.querySelector("a").addEventListener("click", this.downloadLibrary);
 			return template.content.firstElementChild;
 		}
@@ -88,8 +79,7 @@ module.exports = (_ => {
 					before: {
 						GuildItem: "type",
 						GuildIconWrapper: "render",
-						MutualGuilds: "default",
-						QuickSwitcher: "render",
+						QuickSwitchGuildResult: "render",
 						QuickSwitchChannelResult: "render",
 						GuildSidebar: "render",
 						GuildHeader: "type",
@@ -101,6 +91,7 @@ module.exports = (_ => {
 						BlobMask: "render",
 						GuildIconWrapper: "render",
 						GuildIcon: "render",
+						MutualGuilds: "default",
 						NavItem: "default",
 						GuildHeader: "type",
 						WelcomeArea: "default"
@@ -117,11 +108,10 @@ module.exports = (_ => {
 				`;
 			}
 			
-			onStart () {				
+			onStart () {
 				BDFDB.PatchUtils.patch(this, BDFDB.LibraryModules.IconUtils, "getGuildBannerURL", {instead: e => {
 					let guild = BDFDB.LibraryModules.GuildStore.getGuild(e.methodArguments[0].id);
 					if (guild) {
-						if (e.methodArguments[0].id == "410787888507256842") return guild.banner;
 						let data = changedGuilds[guild.id];
 						if (data && data.banner && !data.removeBanner) return data.banner;
 					}
@@ -132,6 +122,20 @@ module.exports = (_ => {
 					before: e => this.processGuildItem({instance: e.thisObject, returnvalue: e.returnValue, methodname: "render"}),
 					after: e => this.processGuildItem({instance: e.thisObject, returnvalue: e.returnValue, methodname: "render"})
 				});
+
+				BDFDB.PatchUtils.patch(this, BDFDB.LibraryModules.QuerySearchUtils, "queryGuilds", {after: e => {
+					if (!e.methodArguments[0].query) return;
+					for (let id in changedGuilds) if (changedGuilds[id] && changedGuilds[id].name && changedGuilds[id].name.toLocaleLowerCase().indexOf(e.methodArguments[0].query.toLocaleLowerCase()) > -1 && !e.returnValue.find(n => n.record && n.record.id == id && n.type == BDFDB.LibraryModules.QueryUtils.AutocompleterResultTypes.GUILD)) {
+						let guild = BDFDB.LibraryModules.GuildStore.getGuild(id);
+						if (guild) e.returnValue.push({
+							comparator: guild.name,
+							record: guild,
+							score: 30000,
+							sortable: guild.name.toLocaleLowerCase(),
+							type: BDFDB.LibraryModules.QueryUtils.AutocompleterResultTypes.GUILD
+						});
+					}
+				}});
 				
 				this.forceUpdateAll();
 			}
@@ -317,8 +321,11 @@ module.exports = (_ => {
 				}
 			}
 
-			processQuickSwitcher (e) {
-				if (this.settings.places.quickSwitcher) for (let i in e.instance.props.results) if (e.instance.props.results[i].type == "GUILD") e.instance.props.results[i].record = this.getGuildData(e.instance.props.results[i].record.id);
+
+			processQuickSwitchGuildResult (e) {
+				if (e.instance.props.guild && this.settings.places.quickSwitcher) {
+					e.instance.props.guild = this.getGuildData(e.instance.props.guild.id);
+				}
 			}
 
 			processQuickSwitchChannelResult (e) {
@@ -490,7 +497,7 @@ module.exports = (_ => {
 												BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.FormComponents.FormTitle, {
 													className: BDFDB.disCN.marginreset,
 													tag: BDFDB.LibraryComponents.FormComponents.FormTitle.Tags.H5,
-													children: this.labels.modal_guildicon
+													children: BDFDB.LanguageUtils.LibraryStrings.guildicon
 												}),
 												BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.SettingsItem, {
 													type: "Switch",
@@ -543,7 +550,7 @@ module.exports = (_ => {
 												BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.FormComponents.FormTitle, {
 													className: BDFDB.disCN.marginreset,
 													tag: BDFDB.LibraryComponents.FormComponents.FormTitle.Tags.H5,
-													children: this.labels.modal_guildbanner
+													children: BDFDB.LanguageUtils.LibraryStrings.guildbanner
 												}),
 												BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.SettingsItem, {
 													type: "Switch",
@@ -715,8 +722,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Цвят на подсказка",
 							modal_colorpicker4:					"Цвят на шрифта",
 							modal_guildacronym:					"Локален сървър Акроним",
-							modal_guildbanner:					"Банер",
-							modal_guildicon:					"Икона",
 							modal_guildname:					"Име на локален сървър",
 							modal_header:						"Настройки на локалния сървър",
 							modal_ignorecustomname:				"Използвайте оригиналното име на сървъра за съкращението на сървъра",
@@ -737,8 +742,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Værktøjstip farve",
 							modal_colorpicker4:					"Skrift farve",
 							modal_guildacronym:					"Lokal server akronym",
-							modal_guildbanner:					"Banner",
-							modal_guildicon:					"Ikon",
 							modal_guildname:					"Lokalt servernavn",
 							modal_header:						"Lokale serverindstillinger",
 							modal_ignorecustomname:				"Brug det originale servernavn til serverakronymet",
@@ -759,8 +762,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Tooltipfarbe",
 							modal_colorpicker4:					"Schriftfarbe",
 							modal_guildacronym:					"Lokales Serverakronym",
-							modal_guildbanner:					"Banner",
-							modal_guildicon:					"Symbol",
 							modal_guildname:					"Lokaler Servername",
 							modal_header:						"Lokale Servereinstellungen",
 							modal_ignorecustomname:				"Verwenden Sie den ursprünglichen Servernamen für das Serverakronym",
@@ -781,8 +782,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Χρώμα επεξήγησης εργαλείου",
 							modal_colorpicker4:					"Χρώμα γραμματοσειράς",
 							modal_guildacronym:					"Τοπικό αρκτικόλεξο διακομιστή",
-							modal_guildbanner:					"Πανό",
-							modal_guildicon:					"Εικόνισμα",
 							modal_guildname:					"Τοπικό όνομα διακομιστή",
 							modal_header:						"Ρυθμίσεις τοπικού διακομιστή",
 							modal_ignorecustomname:				"Χρησιμοποιήστε το αρχικό όνομα διακομιστή για το αρκτικόλεξο διακομιστή",
@@ -803,8 +802,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Color de información sobre herramientas",
 							modal_colorpicker4:					"Color de fuente",
 							modal_guildacronym:					"Acrónimo del servidor local",
-							modal_guildbanner:					"Bandera",
-							modal_guildicon:					"Icono",
 							modal_guildname:					"Nombre del servidor local",
 							modal_header:						"Configuración del servidor local",
 							modal_ignorecustomname:				"Utilice el nombre del servidor original para el acrónimo del servidor",
@@ -825,8 +822,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Työkaluvihjeen väri",
 							modal_colorpicker4:					"Fontin väri",
 							modal_guildacronym:					"Paikallisen palvelimen lyhenne",
-							modal_guildbanner:					"Banneri",
-							modal_guildicon:					"Kuvake",
 							modal_guildname:					"Paikallisen palvelimen nimi",
 							modal_header:						"Paikallisen palvelimen asetukset",
 							modal_ignorecustomname:				"Käytä palvelimen lyhenteessä alkuperäistä palvelimen nimeä",
@@ -847,8 +842,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Couleur de l'info-bulle",
 							modal_colorpicker4:					"Couleur de la police",
 							modal_guildacronym:					"Acronyme local du serveur",
-							modal_guildbanner:					"Bannière",
-							modal_guildicon:					"Icône",
 							modal_guildname:					"Nom local du serveur",
 							modal_header:						"Paramètres locaux du serveur",
 							modal_ignorecustomname:				"Utilisez le nom de serveur d'origine pour l'acronyme de serveur",
@@ -869,8 +862,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Boja opisa",
 							modal_colorpicker4:					"Boja fonta",
 							modal_guildacronym:					"Lokalni poslužitelj kratica",
-							modal_guildbanner:					"Natpis",
-							modal_guildicon:					"Ikona",
 							modal_guildname:					"Naziv lokalnog poslužitelja",
 							modal_header:						"Postavke lokalnog poslužitelja",
 							modal_ignorecustomname:				"Koristite izvorno ime poslužitelja za kraticu poslužitelja",
@@ -891,8 +882,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Tooltip Color",
 							modal_colorpicker4:					"Betű szín",
 							modal_guildacronym:					"Helyi szerver betűszó",
-							modal_guildbanner:					"Transzparens",
-							modal_guildicon:					"Ikon",
 							modal_guildname:					"Helyi kiszolgáló neve",
 							modal_header:						"Helyi kiszolgáló beállításai",
 							modal_ignorecustomname:				"A kiszolgáló rövidítéshez használja az eredeti kiszolgáló nevet",
@@ -913,8 +902,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Colore della descrizione comando",
 							modal_colorpicker4:					"Colore del carattere",
 							modal_guildacronym:					"Acronimo locale del server",
-							modal_guildbanner:					"Banner",
-							modal_guildicon:					"Icona",
 							modal_guildname:					"Nome locale server",
 							modal_header:						"Impostazioni locale del server",
 							modal_ignorecustomname:				"Utilizzare il nome del server originale per l'acronimo del server",
@@ -935,8 +922,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"ツールチップの色",
 							modal_colorpicker4:					"フォントの色",
 							modal_guildacronym:					"ローカルサーバーの頭字語",
-							modal_guildbanner:					"バナー",
-							modal_guildicon:					"アイコン",
 							modal_guildname:					"ローカルサーバー名",
 							modal_header:						"ローカルサーバー設定",
 							modal_ignorecustomname:				"サーバーの頭字語には元のサーバー名を使用します",
@@ -957,8 +942,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"툴팁 색상",
 							modal_colorpicker4:					"글자 색",
 							modal_guildacronym:					"로컬 서버 약어",
-							modal_guildbanner:					"배너",
-							modal_guildicon:					"상",
 							modal_guildname:					"로컬 서버 이름",
 							modal_header:						"로컬 서버 설정",
 							modal_ignorecustomname:				"서버 약어에 원래 서버 이름 사용",
@@ -979,8 +962,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Patarimo spalva",
 							modal_colorpicker4:					"Šrifto spalva",
 							modal_guildacronym:					"Vietinio serverio santrumpa",
-							modal_guildbanner:					"Reklamjuostė",
-							modal_guildicon:					"Piktograma",
 							modal_guildname:					"Vietinio serverio pavadinimas",
 							modal_header:						"Vietinio serverio nustatymai",
 							modal_ignorecustomname:				"Serverio akronimui naudokite originalų serverio pavadinimą",
@@ -1001,8 +982,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Tooltipkleur",
 							modal_colorpicker4:					"Letterkleur",
 							modal_guildacronym:					"Lokale serveracroniem",
-							modal_guildbanner:					"Banner",
-							modal_guildicon:					"Icoon",
 							modal_guildname:					"Lokale servernaam",
 							modal_header:						"Lokale serverinstellingen",
 							modal_ignorecustomname:				"Gebruik de oorspronkelijke servernaam voor het serveracroniem",
@@ -1023,8 +1002,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Verktøytipsfarge",
 							modal_colorpicker4:					"Skriftfarge",
 							modal_guildacronym:					"Lokal serverakronymet",
-							modal_guildbanner:					"Banner",
-							modal_guildicon:					"Ikon",
 							modal_guildname:					"Lokalt servernavn",
 							modal_header:						"Lokale serverinnstillinger",
 							modal_ignorecustomname:				"Bruk det originale servernavnet for serverakronymet",
@@ -1045,8 +1022,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Kolor etykiety narzędzi",
 							modal_colorpicker4:					"Kolor czcionki",
 							modal_guildacronym:					"Akronim lokalnego serwera",
-							modal_guildbanner:					"Transparent",
-							modal_guildicon:					"Ikona",
 							modal_guildname:					"Nazwa serwera lokalnego",
 							modal_header:						"Ustawienia serwera lokalnego",
 							modal_ignorecustomname:				"Użyj oryginalnej nazwy serwera dla akronimu serwera",
@@ -1067,8 +1042,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Cor da dica de ferramenta",
 							modal_colorpicker4:					"Cor da fonte",
 							modal_guildacronym:					"Acrônimo de servidor local",
-							modal_guildbanner:					"Bandeira",
-							modal_guildicon:					"Ícone",
 							modal_guildname:					"Nome do servidor local",
 							modal_header:						"Configurações do servidor local",
 							modal_ignorecustomname:				"Use o nome do servidor original para o acrônimo do servidor",
@@ -1089,8 +1062,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Culoare sfat de instrumente",
 							modal_colorpicker4:					"Culoarea fontului",
 							modal_guildacronym:					"Acronim de server local",
-							modal_guildbanner:					"Banner",
-							modal_guildicon:					"Pictogramă",
 							modal_guildname:					"Numele serverului local",
 							modal_header:						"Setări locale ale serverului",
 							modal_ignorecustomname:				"Utilizați numele serverului original pentru acronimul serverului",
@@ -1111,8 +1082,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Цвет всплывающей подсказки",
 							modal_colorpicker4:					"Цвет шрифта",
 							modal_guildacronym:					"Акроним локального сервера",
-							modal_guildbanner:					"Баннер",
-							modal_guildicon:					"Икона",
 							modal_guildname:					"Имя локального сервера",
 							modal_header:						"Настройки локального сервера",
 							modal_ignorecustomname:				"Используйте исходное имя сервера для аббревиатуры сервера",
@@ -1133,8 +1102,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Verktygstipsfärg",
 							modal_colorpicker4:					"Fontfärg",
 							modal_guildacronym:					"Lokal servernakronym",
-							modal_guildbanner:					"Baner",
-							modal_guildicon:					"Ikon",
 							modal_guildname:					"Lokalt servernamn",
 							modal_header:						"Lokala serverinställningar",
 							modal_ignorecustomname:				"Använd det ursprungliga servernamnet för servernakronym",
@@ -1155,8 +1122,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"เคล็ดลับเครื่องมือสี",
 							modal_colorpicker4:					"สีตัวอักษร",
 							modal_guildacronym:					"ตัวย่อเซิร์ฟเวอร์ภายใน",
-							modal_guildbanner:					"แบนเนอร์",
-							modal_guildicon:					"ไอคอน",
 							modal_guildname:					"ชื่อเซิร์ฟเวอร์ภายใน",
 							modal_header:						"การตั้งค่าเซิร์ฟเวอร์ภายใน",
 							modal_ignorecustomname:				"ใช้ชื่อเซิร์ฟเวอร์เดิมสำหรับตัวย่อเซิร์ฟเวอร์",
@@ -1177,8 +1142,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Araç İpucu Rengi",
 							modal_colorpicker4:					"Yazı rengi",
 							modal_guildacronym:					"Yerel Sunucu Kısaltması",
-							modal_guildbanner:					"Afiş",
-							modal_guildicon:					"Simge",
 							modal_guildname:					"Yerel Sunucu Adı",
 							modal_header:						"Yerel Sunucu Ayarları",
 							modal_ignorecustomname:				"Sunucu Kısaltması için orijinal Sunucu Adını kullanın",
@@ -1199,8 +1162,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Колір підказки",
 							modal_colorpicker4:					"Колір шрифту",
 							modal_guildacronym:					"Акронім локального сервера",
-							modal_guildbanner:					"Банер",
-							modal_guildicon:					"Піктограма",
 							modal_guildname:					"Назва локального сервера",
 							modal_header:						"Налаштування локального сервера",
 							modal_ignorecustomname:				"Використовуйте оригінальне ім’я сервера для абревіатури сервера",
@@ -1221,8 +1182,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Màu chú giải công cụ",
 							modal_colorpicker4:					"Màu phông chữ",
 							modal_guildacronym:					"Từ viết tắt của máy chủ cục bộ",
-							modal_guildbanner:					"Ảnh bìa",
-							modal_guildicon:					"Biểu tượng",
 							modal_guildname:					"Tên máy chủ cục bộ",
 							modal_header:						"Cài đặt máy chủ cục bộ",
 							modal_ignorecustomname:				"Sử dụng tên máy chủ ban đầu cho từ viết tắt máy chủ",
@@ -1243,8 +1202,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"工具提示颜色",
 							modal_colorpicker4:					"字体颜色",
 							modal_guildacronym:					"本地服务器缩写",
-							modal_guildbanner:					"旗帜",
-							modal_guildicon:					"图标",
 							modal_guildname:					"本地服务器名称",
 							modal_header:						"本地服务器设置",
 							modal_ignorecustomname:				"使用原始服务器名称作为服务器首字母缩写词",
@@ -1265,8 +1222,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"工具提示顏色",
 							modal_colorpicker4:					"字體顏色",
 							modal_guildacronym:					"本地服務器縮​​寫",
-							modal_guildbanner:					"旗幟",
-							modal_guildicon:					"圖標",
 							modal_guildname:					"本地服務器名稱",
 							modal_header:						"本地服務器設置",
 							modal_ignorecustomname:				"使用原始服務器名稱作為服務器首字母縮寫詞",
@@ -1287,8 +1242,6 @@ module.exports = (_ => {
 							modal_colorpicker3:					"Tooltip Color",
 							modal_colorpicker4:					"Font Color",
 							modal_guildacronym:					"Local Server Acronym",
-							modal_guildbanner:					"Banner",
-							modal_guildicon:					"Icon",
 							modal_guildname:					"Local Server Name",
 							modal_header:						"Local Server Settings",
 							modal_ignorecustomname:				"Use the original Server Name for the Server Acronym",
@@ -1302,5 +1255,5 @@ module.exports = (_ => {
 				}
 			}
 		};
-	})(window.BDFDB_Global.PluginUtils.buildPlugin(config));
+	})(window.BDFDB_Global.PluginUtils.buildPlugin(changeLog));
 })();

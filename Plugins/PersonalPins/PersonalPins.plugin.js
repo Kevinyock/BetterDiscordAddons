@@ -2,7 +2,7 @@
  * @name PersonalPins
  * @author DevilBro
  * @authorId 278543574059057154
- * @version 2.0.9
+ * @version 2.1.1
  * @description Allows you to locally pin Messages
  * @invite Jx3TjNS
  * @donate https://www.paypal.me/MircoWittrien
@@ -13,20 +13,16 @@
  */
 
 module.exports = (_ => {
-	const config = {
-		"info": {
-			"name": "PersonalPins",
-			"author": "DevilBro",
-			"version": "2.0.9",
-			"description": "Allows you to locally pin Messages"
-		}
+	const changeLog = {
+		
 	};
 
 	return !window.BDFDB_Global || (!window.BDFDB_Global.loaded && !window.BDFDB_Global.started) ? class {
-		getName () {return config.info.name;}
-		getAuthor () {return config.info.author;}
-		getVersion () {return config.info.version;}
-		getDescription () {return `The Library Plugin needed for ${config.info.name} is missing. Open the Plugin Settings to download it. \n\n${config.info.description}`;}
+		constructor (meta) {for (let key in meta) this[key] = meta[key];}
+		getName () {return this.name;}
+		getAuthor () {return this.author;}
+		getVersion () {return this.version;}
+		getDescription () {return `The Library Plugin needed for ${this.name} is missing. Open the Plugin Settings to download it. \n\n${this.description}`;}
 		
 		downloadLibrary () {
 			require("request").get("https://mwittrien.github.io/BetterDiscordAddons/Library/0BDFDB.plugin.js", (e, r, b) => {
@@ -39,7 +35,7 @@ module.exports = (_ => {
 			if (!window.BDFDB_Global || !Array.isArray(window.BDFDB_Global.pluginQueue)) window.BDFDB_Global = Object.assign({}, window.BDFDB_Global, {pluginQueue: []});
 			if (!window.BDFDB_Global.downloadModal) {
 				window.BDFDB_Global.downloadModal = true;
-				BdApi.showConfirmationModal("Library Missing", `The Library Plugin needed for ${config.info.name} is missing. Please click "Download Now" to install it.`, {
+				BdApi.showConfirmationModal("Library Missing", `The Library Plugin needed for ${this.name} is missing. Please click "Download Now" to install it.`, {
 					confirmText: "Download Now",
 					cancelText: "Cancel",
 					onCancel: _ => {delete window.BDFDB_Global.downloadModal;},
@@ -49,13 +45,13 @@ module.exports = (_ => {
 					}
 				});
 			}
-			if (!window.BDFDB_Global.pluginQueue.includes(config.info.name)) window.BDFDB_Global.pluginQueue.push(config.info.name);
+			if (!window.BDFDB_Global.pluginQueue.includes(this.name)) window.BDFDB_Global.pluginQueue.push(this.name);
 		}
 		start () {this.load();}
 		stop () {}
 		getSettingsPanel () {
 			let template = document.createElement("template");
-			template.innerHTML = `<div style="color: var(--header-primary); font-size: 16px; font-weight: 300; white-space: pre; line-height: 22px;">The Library Plugin needed for ${config.info.name} is missing.\nPlease click <a style="font-weight: 500;">Download Now</a> to install it.</div>`;
+			template.innerHTML = `<div style="color: var(--header-primary); font-size: 16px; font-weight: 300; white-space: pre; line-height: 22px;">The Library Plugin needed for ${this.name} is missing.\nPlease click <a style="font-weight: 500;">Download Now</a> to install it.</div>`;
 			template.content.firstElementChild.querySelector("a").addEventListener("click", this.downloadLibrary);
 			return template.content.firstElementChild;
 		}
@@ -74,7 +70,7 @@ module.exports = (_ => {
 		
 		const popoutProps = {};
 		let notes = {};
-	
+		
 		const NotesPopoutComponent = class NotesPopout extends BdApi.React.Component {
 			containsSearchkey(data, key, searchKey) {
 				let value = BDFDB.ObjectUtils.get(data, key);
@@ -130,7 +126,7 @@ module.exports = (_ => {
 				let searchKey = popoutProps.searchKey.toUpperCase();
 				if (searchKey) {
 					let searchValues = ["content", "author.username", "rawDescription", "author.name"];
-					messages = messages.filter(m => searchValues.some(key => this.containsSearchkey(m.message, key, searchKey) || m.message.embeds.some(embed => this.containsSearchkey(embed, key, searchKey))));
+					messages = messages.filter(m => m.note.tags && m.note.tags.some(tag => tag.indexOf(searchKey.toUpperCase()) > -1) || searchValues.some(key => this.containsSearchkey(m.message, key, searchKey) || m.message.embeds.some(embed => this.containsSearchkey(embed, key, searchKey))));
 				}
 				BDFDB.ArrayUtils.keySort(messages, popoutProps.selectedSort.value);
 				if (popoutProps.selectedOrder.value != "descending") messages.reverse();
@@ -149,7 +145,7 @@ module.exports = (_ => {
 					}
 				}
 				return [
-					popoutProps.selectedFilter.value == "channel" ? null : BDFDB.ReactUtils.createElement("div", {
+					popoutProps.selectedFilter.value != "channel" && BDFDB.ReactUtils.createElement("div", {
 						className: BDFDB.disCN.messagespopoutchannelseparator,
 						children: [
 							BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.Clickable, {
@@ -165,7 +161,8 @@ module.exports = (_ => {
 								children: channel.guild_id ? (BDFDB.LibraryModules.GuildStore.getGuild(channel.guild_id) || {}).name || BDFDB.LanguageUtils.LanguageStrings.GUILD_UNAVAILABLE_HEADER : BDFDB.LanguageUtils.LanguageStrings.DIRECT_MESSAGES
 							}) : null
 						]
-					}), BDFDB.ReactUtils.createElement("div", {
+					}),
+					BDFDB.ReactUtils.createElement("div", {
 						className: BDFDB.disCN.messagespopoutgroupwrapper,
 						key: message.id,
 						children: [
@@ -226,6 +223,58 @@ module.exports = (_ => {
 										})
 									})
 								]
+							}),
+							BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.Flex, {
+								wrap: BDFDB.LibraryComponents.Flex.Wrap.WRAP,
+								justify: BDFDB.LibraryComponents.Flex.Justify.END,
+								children: [note.tags].flat(10).filter(n => n).map(label => BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.Badges.TextBadge, {
+									className: BDFDB.disCN._personalpinsmessagetag,
+									color: "var(--background-tertiary)",
+									onClick: _ => {
+										BDFDB.ArrayUtils.remove(note.tags, label, true);
+										BDFDB.DataUtils.save(notes, _this, "notes");
+										BDFDB.ReactUtils.forceUpdate(this);
+									},
+									text: [
+										BDFDB.ReactUtils.createElement("div", {
+											className: BDFDB.disCN._personalpinsmessagetagname,
+											children: label
+										}),
+										BDFDB.ReactUtils.createElement("div", {
+											className: BDFDB.disCN._personalpinsmessagetagdelete,
+											children: BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.SvgIcon, {
+												name: BDFDB.LibraryComponents.SvgIcon.Names.CLOSE,
+												width: 14,
+												height: 14,
+												nativeClass: true,
+											})
+										})
+									]
+								})).concat(BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.PopoutContainer, {
+									children: BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.Badges.TextBadge, {
+										className: BDFDB.disCNS._personalpinsmessagetag + BDFDB.disCN._personalpinsmessagetagadd,
+										color: "var(--background-tertiary)",
+										text: "+"
+									}),
+									animation: BDFDB.LibraryComponents.PopoutContainer.Animation.SCALE,
+									position: BDFDB.LibraryComponents.PopoutContainer.Positions.TOP,
+									align: BDFDB.LibraryComponents.PopoutContainer.Align.CENTER,
+									arrow: true,
+									onOpen: instance => BDFDB.DOMUtils.addClass(instance.domElementRef.current, BDFDB.disCN._personalpinsmessagetagaddactive),
+									onClose: instance => BDFDB.DOMUtils.removeClass(instance.domElementRef.current, BDFDB.disCN._personalpinsmessagetagaddactive),
+									renderPopout: instance => BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.TextInput, {
+										onKeyDown: (event, textInstance) => {
+											let tag = textInstance.props.value && textInstance.props.value.toUpperCase();
+											if (tag && event.which == 13 && (!note.tags || note.tags.indexOf(tag) == -1)) {
+												instance.toggle();
+												if (!note.tags) note.tags = [];
+												note.tags.push(tag);
+												BDFDB.DataUtils.save(notes, _this, "notes");
+												BDFDB.ReactUtils.forceUpdate(this);
+											}
+										}
+									})
+								}))
 							})
 						]
 					})
@@ -336,13 +385,39 @@ module.exports = (_ => {
 						HeaderBar: "default"
 					}
 				};
+				
+				this.css = `
+					${BDFDB.dotCN._personalpinsmessagetag} {
+						margin: 0 3px 4px 3px;
+						cursor: pointer;
+					}
+					${BDFDB.dotCN._personalpinsmessagetag}:hover ${BDFDB.dotCN._personalpinsmessagetagname} {
+						height: 0;
+						visibility: hidden;
+					}
+					${BDFDB.dotCNS._personalpinsmessagetag + BDFDB.dotCN._personalpinsmessagetagdelete} {
+						visibility: hidden;
+					}
+					${BDFDB.dotCN._personalpinsmessagetag}:hover ${BDFDB.dotCN._personalpinsmessagetagdelete} {
+						visibility: visible;
+					}
+					${BDFDB.dotCN._personalpinsmessagetag + BDFDB.notCN._personalpinsmessagetagadd}:hover {
+						background-color: var(--bdfdb-red) !important;
+					}
+					${BDFDB.dotCN._personalpinsmessagetagadd} {
+						font-size: 16px;
+					}
+					${BDFDB.dotCN._personalpinsmessagetagadd + BDFDB.dotCN._personalpinsmessagetagaddactive} {
+						background-color: var(--bdfdb-blurple) !important;
+					}
+				`;
 			}
 			
 			onStart () {
 				notes = BDFDB.DataUtils.load(this, "notes");
 				
 				BDFDB.PatchUtils.patch(this, BDFDB.LibraryModules.DispatchApiUtils, "dispatch", {after: e => {
-					if (BDFDB.ObjectUtils.is(e.methodArguments[0]) && e.methodArguments[0].type == BDFDB.DiscordConstants.ActionTypes.MESSAGE_DELETE) {
+					if (BDFDB.ObjectUtils.is(e.methodArguments[0]) && e.methodArguments[0].type == "MESSAGE_DELETE") {
 						let note = this.getNoteData({id: e.methodArguments[0].id, channel_id: e.methodArguments[0].channelId});
 						if (note) this.removeNoteData(note, true);
 					}
@@ -556,12 +631,12 @@ module.exports = (_ => {
 				return notes[guild_id] && notes[guild_id][channel.id] && notes[guild_id][channel.id][message.id];
 			}
 
-			updateNoteData (note, newmessage) {
+			updateNoteData (note, newMessage) {
 				let message = JSON.parse(note.message);
 				let channel = JSON.parse(note.channel);
 				if (!message || !channel) return;
 				let guild_id = channel.guild_id || BDFDB.DiscordConstants.ME;
-				notes[guild_id][channel.id][note.id].message = JSON.stringify(newmessage);
+				notes[guild_id][channel.id][note.id].message = JSON.stringify(newMessage);
 				BDFDB.DataUtils.save(notes, this, "notes");
 				BDFDB.NotificationUtils.toast(this.labels.toast_noteupdate, {type: "info"});
 			}
@@ -1050,5 +1125,5 @@ module.exports = (_ => {
 				}
 			}
 		};
-	})(window.BDFDB_Global.PluginUtils.buildPlugin(config));
+	})(window.BDFDB_Global.PluginUtils.buildPlugin(changeLog));
 })();

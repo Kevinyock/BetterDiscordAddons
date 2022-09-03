@@ -2,7 +2,7 @@
  * @name ServerFolders
  * @author DevilBro
  * @authorId 278543574059057154
- * @version 6.9.9
+ * @version 7.0.3
  * @description Changes Discord's Folders, Servers open in a new Container, also adds extra Features to more easily organize, customize and manage your Folders
  * @invite Jx3TjNS
  * @donate https://www.paypal.me/MircoWittrien
@@ -13,20 +13,16 @@
  */
 
 module.exports = (_ => {
-	const config = {
-		"info": {
-			"name": "ServerFolders",
-			"author": "DevilBro",
-			"version": "6.9.9",
-			"description": "Changes Discord's Folders, Servers open in a new Container, also adds extra Features to more easily organize, customize and manage your Folders"
-		}
+	const changeLog = {
+		
 	};
 
 	return !window.BDFDB_Global || (!window.BDFDB_Global.loaded && !window.BDFDB_Global.started) ? class {
-		getName () {return config.info.name;}
-		getAuthor () {return config.info.author;}
-		getVersion () {return config.info.version;}
-		getDescription () {return `The Library Plugin needed for ${config.info.name} is missing. Open the Plugin Settings to download it. \n\n${config.info.description}`;}
+		constructor (meta) {for (let key in meta) this[key] = meta[key];}
+		getName () {return this.name;}
+		getAuthor () {return this.author;}
+		getVersion () {return this.version;}
+		getDescription () {return `The Library Plugin needed for ${this.name} is missing. Open the Plugin Settings to download it. \n\n${this.description}`;}
 		
 		downloadLibrary () {
 			require("request").get("https://mwittrien.github.io/BetterDiscordAddons/Library/0BDFDB.plugin.js", (e, r, b) => {
@@ -39,7 +35,7 @@ module.exports = (_ => {
 			if (!window.BDFDB_Global || !Array.isArray(window.BDFDB_Global.pluginQueue)) window.BDFDB_Global = Object.assign({}, window.BDFDB_Global, {pluginQueue: []});
 			if (!window.BDFDB_Global.downloadModal) {
 				window.BDFDB_Global.downloadModal = true;
-				BdApi.showConfirmationModal("Library Missing", `The Library Plugin needed for ${config.info.name} is missing. Please click "Download Now" to install it.`, {
+				BdApi.showConfirmationModal("Library Missing", `The Library Plugin needed for ${this.name} is missing. Please click "Download Now" to install it.`, {
 					confirmText: "Download Now",
 					cancelText: "Cancel",
 					onCancel: _ => {delete window.BDFDB_Global.downloadModal;},
@@ -49,13 +45,13 @@ module.exports = (_ => {
 					}
 				});
 			}
-			if (!window.BDFDB_Global.pluginQueue.includes(config.info.name)) window.BDFDB_Global.pluginQueue.push(config.info.name);
+			if (!window.BDFDB_Global.pluginQueue.includes(this.name)) window.BDFDB_Global.pluginQueue.push(this.name);
 		}
 		start () {this.load();}
 		stop () {}
 		getSettingsPanel () {
 			let template = document.createElement("template");
-			template.innerHTML = `<div style="color: var(--header-primary); font-size: 16px; font-weight: 300; white-space: pre; line-height: 22px;">The Library Plugin needed for ${config.info.name} is missing.\nPlease click <a style="font-weight: 500;">Download Now</a> to install it.</div>`;
+			template.innerHTML = `<div style="color: var(--header-primary); font-size: 16px; font-weight: 300; white-space: pre; line-height: 22px;">The Library Plugin needed for ${this.name} is missing.\nPlease click <a style="font-weight: 500;">Download Now</a> to install it.</div>`;
 			template.content.firstElementChild.querySelector("a").addEventListener("click", this.downloadLibrary);
 			return template.content.firstElementChild;
 		}
@@ -107,89 +103,118 @@ module.exports = (_ => {
 							className: BDFDB.disCN.guildsscroller,
 							children: this.props.folders.map(folder => {
 								let data = _this.getFolderConfig(folder.folderId);
-								return folder.guildIds.map(guildId => {
-									return [
-										this.draggedGuild == guildId ? null : BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.GuildComponents.Guild, {
-											guild: BDFDB.LibraryModules.GuildStore.getGuild(guildId),
-											state: true,
-											list: true,
-											tooltipConfig: Object.assign({
-												offset: 12
-											}, data.copyTooltipColor && {
-												backgroundColor: data.color3,
-												fontColor: data.color4,
-											}),
-											onClick: event => {
-												if (BDFDB.ListenerUtils.isPressed(46)) {
-													BDFDB.ListenerUtils.stopEvent(event);
-													_this.removeGuildFromFolder(folder.folderId, guildId);
-												}
-												else {
-													if (_this.settings.general.closeAllFolders) {
-														for (let openFolderId of BDFDB.LibraryModules.FolderUtils.getExpandedFolders()) if (openFolderId != folder.folderId || !_this.settings.general.forceOpenFolder) BDFDB.LibraryModules.GuildUtils.toggleGuildFolderExpand(openFolderId);
-													}
-													else if (_this.settings.general.closeTheFolder && !_this.settings.general.forceOpenFolder && BDFDB.LibraryModules.FolderUtils.isFolderExpanded(folder.folderId)) BDFDB.LibraryModules.GuildUtils.toggleGuildFolderExpand(folder.folderId);
-													else BDFDB.ReactUtils.forceUpdate(this);
-												}
-											},
-											onMouseDown: (event, instance) => {
-												event = event.nativeEvent || event;
-												let mouseMove = event2 => {
-													if (Math.sqrt((event.pageX - event2.pageX)**2) > 20 || Math.sqrt((event.pageY - event2.pageY)**2) > 20) {
-														BDFDB.ListenerUtils.stopEvent(event);
-														this.draggedGuild = guildId;
-														let dragPreview = _this.createDragPreview(BDFDB.ReactUtils.findDOMNode(instance).cloneNode(true), event2);
-														BDFDB.ReactUtils.forceUpdate(this);
-														document.removeEventListener("mousemove", mouseMove);
-														document.removeEventListener("mouseup", mouseUp);
-														let dragging = event3 => {
-															_this.updateDragPreview(dragPreview, event3);
-															let placeholder = BDFDB.DOMUtils.getParent(BDFDB.dotCN._serverfoldersguildplaceholder, event3.target);
-															let hoveredGuild = (BDFDB.ReactUtils.findValue(BDFDB.DOMUtils.getParent(BDFDB.dotCNS._serverfoldersfoldercontent + BDFDB.dotCN.guildouter, placeholder ? placeholder.previousSibling : event3.target), "guild", {up: true}) || {}).id;
-															if (hoveredGuild) {
-																let hoveredGuildFolder = BDFDB.GuildUtils.getFolder(hoveredGuild);
-																if (!hoveredGuildFolder || hoveredGuildFolder.folderId != folder.folderId) hoveredGuild = null;
-															}
-															let update = hoveredGuild != this.hoveredGuild;
-															if (hoveredGuild) this.hoveredGuild = hoveredGuild;
-															else delete this.hoveredGuild; 
-															if (update) BDFDB.ReactUtils.forceUpdate(this);
-														};
-														let releasing = event3 => {
-															BDFDB.ListenerUtils.stopEvent(event3);
-															BDFDB.DOMUtils.remove(dragPreview);
-															if (this.hoveredGuild) {
-																let guildIds = [].concat(folder.guildIds);
-																BDFDB.ArrayUtils.remove(guildIds, this.draggedGuild, true);
-																guildIds.splice(guildIds.indexOf(this.hoveredGuild) + 1, 0, this.draggedGuild);
-																_this.updateFolder(Object.assign({}, folder, {guildIds}));
-															}
-															delete this.draggedGuild;
-															delete this.hoveredGuild;
-															BDFDB.ReactUtils.forceUpdate(this);
-															document.removeEventListener("mousemove", dragging);
-															document.removeEventListener("mouseup", releasing);
-														};
-														document.addEventListener("mousemove", dragging);
-														document.addEventListener("mouseup", releasing);
-													}
-												};
-												let mouseUp = _ => {
-													document.removeEventListener("mousemove", mouseMove);
-													document.removeEventListener("mouseup", mouseUp);
-												};
-												document.addEventListener("mousemove", mouseMove);
-												document.addEventListener("mouseup", mouseUp);
-											}
-										}),
-										this.hoveredGuild != guildId ? null : BDFDB.ReactUtils.createElement("div", {
-											className: BDFDB.disCNS.guildouter + BDFDB.disCN._serverfoldersguildplaceholder,
-											children: BDFDB.ReactUtils.createElement("div", {
-												children: BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.GuildComponents.DragPlaceholder, {})
+								let folderIcon = null;
+								if (_this.settings.addFolderIcon) {
+									let folderIcons = _this.loadAllIcons();
+									folderIcon = folderIcons[data.iconID] ? (!folderIcons[data.iconID].customID ? _this.createBase64SVG(folderIcons[data.iconID].openicon, data.color1, data.color2) : folderIcons[data.iconID].openicon) : null;
+									folderIcon = folderIcon ? BDFDB.ReactUtils.createElement("div", {
+										className: BDFDB.disCN.guildfoldericonwrapper,
+										style: {background: `url(${folderIcon}) center/cover no-repeat`}
+									}) : BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.SvgIcon, {
+										name: BDFDB.LibraryComponents.SvgIcon.Names.FOLDER,
+										color: BDFDB.ColorUtils.convert(folder.folderColor, "RGB") || "var(--bdfdb-blurple)"
+									});
+								}
+								return [
+									folderIcon && BDFDB.ReactUtils.createElement("div", {
+										className: BDFDB.disCN.guildouter,
+										children: BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.GuildComponents.BlobMask, {
+											children: BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.Clickable, {
+												className: BDFDB.disCN.guildfolder,
+												children: BDFDB.ReactUtils.createElement("div", {
+													className: BDFDB.disCN.guildfoldericonwrapper,
+													children: BDFDB.ReactUtils.createElement("div", {
+														className: BDFDB.disCN.guildfoldericonwrapperexpanded,
+														children: folderIcon
+													})
+												})
 											})
 										})
-									]
-								});
+									}),
+									folder.guildIds.map(guildId => {
+										return [
+											this.draggedGuild == guildId ? null : BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.GuildComponents.Guild, {
+												guild: BDFDB.LibraryModules.GuildStore.getGuild(guildId),
+												state: true,
+												list: true,
+												tooltipConfig: Object.assign({
+													offset: 12
+												}, data.copyTooltipColor && {
+													backgroundColor: data.color3,
+													fontColor: data.color4,
+												}),
+												onClick: event => {
+													if (BDFDB.ListenerUtils.isPressed(46)) {
+														BDFDB.ListenerUtils.stopEvent(event);
+														_this.removeGuildFromFolder(folder.folderId, guildId);
+													}
+													else {
+														if (_this.settings.general.closeAllFolders) {
+															for (let openFolderId of BDFDB.LibraryModules.FolderUtils.getExpandedFolders()) if (openFolderId != folder.folderId || !_this.settings.general.forceOpenFolder) BDFDB.LibraryModules.GuildUtils.toggleGuildFolderExpand(openFolderId);
+														}
+														else if (_this.settings.general.closeTheFolder && !_this.settings.general.forceOpenFolder && BDFDB.LibraryModules.FolderUtils.isFolderExpanded(folder.folderId)) BDFDB.LibraryModules.GuildUtils.toggleGuildFolderExpand(folder.folderId);
+														else BDFDB.ReactUtils.forceUpdate(this);
+													}
+												},
+												onMouseDown: (event, instance) => {
+													event = event.nativeEvent || event;
+													let mouseMove = event2 => {
+														if (Math.sqrt((event.pageX - event2.pageX)**2) > 20 || Math.sqrt((event.pageY - event2.pageY)**2) > 20) {
+															BDFDB.ListenerUtils.stopEvent(event);
+															this.draggedGuild = guildId;
+															let dragPreview = _this.createDragPreview(BDFDB.ReactUtils.findDOMNode(instance).cloneNode(true), event2);
+															BDFDB.ReactUtils.forceUpdate(this);
+															document.removeEventListener("mousemove", mouseMove);
+															document.removeEventListener("mouseup", mouseUp);
+															let dragging = event3 => {
+																_this.updateDragPreview(dragPreview, event3);
+																let placeholder = BDFDB.DOMUtils.getParent(BDFDB.dotCN._serverfoldersguildplaceholder, event3.target);
+																let hoveredGuild = (BDFDB.ReactUtils.findValue(BDFDB.DOMUtils.getParent(BDFDB.dotCNS._serverfoldersfoldercontent + BDFDB.dotCN.guildouter, placeholder ? placeholder.previousSibling : event3.target), "guild", {up: true}) || {}).id;
+																if (hoveredGuild) {
+																	let hoveredGuildFolder = BDFDB.GuildUtils.getFolder(hoveredGuild);
+																	if (!hoveredGuildFolder || hoveredGuildFolder.folderId != folder.folderId) hoveredGuild = null;
+																}
+																let update = hoveredGuild != this.hoveredGuild;
+																if (hoveredGuild) this.hoveredGuild = hoveredGuild;
+																else delete this.hoveredGuild; 
+																if (update) BDFDB.ReactUtils.forceUpdate(this);
+															};
+															let releasing = event3 => {
+																BDFDB.ListenerUtils.stopEvent(event3);
+																BDFDB.DOMUtils.remove(dragPreview);
+																if (this.hoveredGuild) {
+																	let guildIds = [].concat(folder.guildIds);
+																	BDFDB.ArrayUtils.remove(guildIds, this.draggedGuild, true);
+																	guildIds.splice(guildIds.indexOf(this.hoveredGuild) + 1, 0, this.draggedGuild);
+																	_this.updateFolder(Object.assign({}, folder, {guildIds}));
+																}
+																delete this.draggedGuild;
+																delete this.hoveredGuild;
+																BDFDB.ReactUtils.forceUpdate(this);
+																document.removeEventListener("mousemove", dragging);
+																document.removeEventListener("mouseup", releasing);
+															};
+															document.addEventListener("mousemove", dragging);
+															document.addEventListener("mouseup", releasing);
+														}
+													};
+													let mouseUp = _ => {
+														document.removeEventListener("mousemove", mouseMove);
+														document.removeEventListener("mouseup", mouseUp);
+													};
+													document.addEventListener("mousemove", mouseMove);
+													document.addEventListener("mouseup", mouseUp);
+												}
+											}),
+											this.hoveredGuild != guildId ? null : BDFDB.ReactUtils.createElement("div", {
+												className: BDFDB.disCNS.guildouter + BDFDB.disCN._serverfoldersguildplaceholder,
+												children: BDFDB.ReactUtils.createElement("div", {
+													children: BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.GuildComponents.DragPlaceholder, {})
+												})
+											})
+										]
+									})
+								];
 							}).filter(n => n).reduce((r, a) => r.concat(a, _this.settings.general.addSeparators ? BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.GuildComponents.Separator, {}) : null), [0]).slice(1, -1).flat(10).filter(n => n)
 						})
 					})
@@ -393,8 +418,9 @@ module.exports = (_ => {
 						closeAllFolders:	{value: false, 	description: "Closes all Folders when selecting a Server"},
 						forceOpenFolder:	{value: false, 	description: "Forces a Folder to open when switching to a Server of that Folder"},
 						showCountBadge:		{value: true, 	description: "Displays Badge for Amount of Servers in a Folder"},
-						extraColumn:		{value: true, 	description: "Moves the Servers from opened Folders in an extra Column"},
-						addSeparators:		{value: true, 	description: "Adds Separators between Servers of different Folders in extra Column"}
+						extraColumn:		{value: true, 	description: "Moves the Servers from opened Folders into an extra Column"},
+						addSeparators:		{value: true, 	description: "Adds Separators between Servers of different Folders in extra Column"},
+						addFolderIcon:		{value: false, 	description: "Adds the Folder Icon on the top of the Server List in the extra Column"}
 					}
 				};
 			
@@ -404,7 +430,7 @@ module.exports = (_ => {
 						Guilds: "type",
 						FolderItem: "default",
 						FolderHeader: "default",
-						GuildItem: "default",
+						GuildItem: "type",
 						GuildFolderSettingsModal: ["componentDidMount", "render"]
 					}
 				};
@@ -563,18 +589,14 @@ module.exports = (_ => {
 									label: this.labels.serversubmenu_removefromfolder,
 									id: BDFDB.ContextMenuUtils.createItemId(this.name, "remove-from-folder"),
 									color: BDFDB.LibraryComponents.MenuItems.Colors.DANGER,
-									action: _ => {
-										this.removeGuildFromFolder(folder.folderId, e.instance.props.guild.id);
-									}
+									action: _ => this.removeGuildFromFolder(folder.folderId, e.instance.props.guild.id)
 								})
 							] : [
 								BDFDB.ContextMenuUtils.createItem(BDFDB.LibraryComponents.MenuItems.MenuItem, {
 									label: this.labels.serversubmenu_createfolder,
 									id: BDFDB.ContextMenuUtils.createItemId(this.name, "create-folder"),
 									disabled: !unfolderedGuilds.length,
-									action: _ => {
-										this.openFolderCreationMenu(unfolderedGuilds, e.instance.props.guild.id);
-									}
+									action: _ => this.openFolderCreationMenu(unfolderedGuilds, e.instance.props.guild.id)
 								}),
 								BDFDB.ContextMenuUtils.createItem(BDFDB.LibraryComponents.MenuItems.MenuItem, {
 									label: this.labels.serversubmenu_addtofolder,
@@ -583,9 +605,7 @@ module.exports = (_ => {
 									children: folders.map((folder, i) => BDFDB.ContextMenuUtils.createItem(BDFDB.LibraryComponents.MenuItems.MenuItem, {
 										label: folder.folderName || `${BDFDB.LanguageUtils.LanguageStrings.SERVER_FOLDER_PLACEHOLDER} #${i + 1}`,
 										id: BDFDB.ContextMenuUtils.createItemId(this.name, "add-to-folder", i + 1),
-										action: _ => {
-											this.addGuildToFolder(folder.folderId, e.instance.props.guild.id);
-										}
+										action: _ => this.addGuildToFolder(folder.folderId, e.instance.props.guild.id)
 									}))
 								})
 							]
@@ -632,7 +652,7 @@ module.exports = (_ => {
 							id: BDFDB.ContextMenuUtils.createItemId(this.name, "remove-folder"),
 							color: BDFDB.LibraryComponents.MenuItems.Colors.DANGER,
 							action: event => {
-								BDFDB.ModalUtils.confirm(this, `Are you sure you want to remove the folder${folder.folderName ? ` '${folder.folderName}'` : ""}?`, _ => {
+								BDFDB.ModalUtils.confirm(this, this.labels.foldercontext_removefolder_confirm.replace("{{var0}}", folder.folderName ? `"${folder.folderName}"` : "").trim(), _ => {
 									this.removeFolder(e.instance.props.folderId);
 								});
 							}
@@ -653,28 +673,29 @@ module.exports = (_ => {
 
 			processGuilds (e) {
 				if (this.settings.general.extraColumn) {
-					if (folderGuildContent && (e.instance.props.isAppFullscreen != folderGuildContent.props.isAppFullscreen || e.instance.props.themeOverride != folderGuildContent.props.themeOverride)) {
-						folderGuildContent.props.isAppFullscreen = e.instance.props.isAppFullscreen;
+					let fullscreen = BDFDB.LibraryModules.VoiceChannelUtils.isFullscreenInContext();
+					if (folderGuildContent && (fullscreen != folderGuildContent.props.isAppFullscreen || e.instance.props.themeOverride != folderGuildContent.props.themeOverride)) {
+						folderGuildContent.props.isAppFullscreen = fullscreen;
 						folderGuildContent.props.themeOverride = e.instance.props.themeOverride;
 						BDFDB.ReactUtils.forceUpdate(folderGuildContent);
 					}
 					let topBar = BDFDB.ReactUtils.findChild(e.returnvalue, {props: [["className", BDFDB.disCN.guildswrapperunreadmentionsbartop]]});
 					if (topBar) {
 						let topIsVisible = topBar.props.isVisible;
-						topBar.props.isVisible = (...args) => {
+						topBar.props.isVisible = BDFDB.TimeUtils.suppress((...args) => {
 							let ids = BDFDB.LibraryModules.FolderStore.guildFolders.filter(n => n.folderId).map(n => n.guildIds).flat(10);
 							args[2] = args[2].filter(id => !ids.includes(id));
-							return topIsVisible(...args);
-						};
+							return topIsVisible(...args) || BDFDB.LibraryModules.UnreadGuildUtils.getMentionCount(args[0]) == 0;
+						}, "Error in isVisible of Top Bar in Guild List!");
 					}
 					let bottomBar = BDFDB.ReactUtils.findChild(e.returnvalue, {props: [["className", BDFDB.disCN.guildswrapperunreadmentionsbarbottom]]});
 					if (bottomBar) {
 						let bottomIsVisible = bottomBar.props.isVisible;
-						bottomBar.props.isVisible = (...args) => {
+						bottomBar.props.isVisible = BDFDB.TimeUtils.suppress((...args) => {
 							let ids = BDFDB.LibraryModules.FolderStore.guildFolders.filter(n => n.folderId).map(n => n.guildIds).flat(10);
 							args[2] = args[2].filter(id => !ids.includes(id));
-							return bottomIsVisible(...args);
-						};
+							return bottomIsVisible(...args) || BDFDB.LibraryModules.UnreadGuildUtils.getMentionCount(args[0]) == 0;
+						}, "Error in isVisible of Bottom Bar in Guild List!");
 					}
 				}
 			}
@@ -725,8 +746,8 @@ module.exports = (_ => {
 				if (!e.instance.props.folderNode) return;
 				let data = this.getFolderConfig(e.instance.props.folderNode.id);
 				if (e.instance.props.expanded || data.useCloseIcon) {
-					let folderIcons = this.loadAllIcons(), icontype = e.instance.props.expanded ? "openicon" : "closedicon";
-					let icon = folderIcons[data.iconID] ? (!folderIcons[data.iconID].customID ? this.createBase64SVG(folderIcons[data.iconID][icontype], data.color1, data.color2) : folderIcons[data.iconID][icontype]) : null;
+					let folderIcons = this.loadAllIcons(), iconType = e.instance.props.expanded ? "openicon" : "closedicon";
+					let icon = folderIcons[data.iconID] ? (!folderIcons[data.iconID].customID ? this.createBase64SVG(folderIcons[data.iconID][iconType], data.color1, data.color2) : folderIcons[data.iconID][iconType]) : null;
 					if (icon) {
 						let [children, index] = BDFDB.ReactUtils.findParent(e.returnvalue, {name: "FolderIconContent"});
 						if (index > -1) children[index] = BDFDB.ReactUtils.createElement("div", {
@@ -787,9 +808,9 @@ module.exports = (_ => {
 			
 			processGuildFolderSettingsModal (e) {
 				if (e.node) {
-					let root = e.node.parentElement.querySelector(BDFDB.dotCN.layermodal);
-					BDFDB.DOMUtils.addClass(root, BDFDB.disCN.layermodalmedium, BDFDB.disCN.modalwrapper, `${this.name}-modal`);
-					BDFDB.DOMUtils.removeClass(root, BDFDB.disCN.layermodalsmall);
+					let root = e.node.parentElement.querySelector(BDFDB.dotCN.modal);
+					BDFDB.DOMUtils.addClass(root, BDFDB.disCN.modalmedium, BDFDB.disCN.modalwrapper, `${this.name}-modal`);
+					BDFDB.DOMUtils.removeClass(root, BDFDB.disCN.modalsmall);
 				}
 				if (e.returnvalue) {
 					let folder = BDFDB.LibraryModules.FolderStore.getGuildFolderById(e.instance.props.folderId);
@@ -1084,7 +1105,7 @@ module.exports = (_ => {
 					else guildFolders.push(oldFolder);
 				}
 				for (let folder of guildFolders) for (let fGuildId of folder.guildIds) guildPositions.push(fGuildId);
-				BDFDB.LibraryModules.SettingsUtilsOld.updateRemoteSettings({guildPositions, guildFolders});
+				BDFDB.LibraryModules.FolderSettingsUtils.saveGuildFolders(guildFolders);
 			}
 			
 			createFolder (guildIds) {
@@ -1105,7 +1126,7 @@ module.exports = (_ => {
 					else guildFolders.push(oldFolder);
 				}
 				for (let folder of guildFolders) for (let fGuildId of folder.guildIds) guildPositions.push(fGuildId);
-				BDFDB.LibraryModules.SettingsUtilsOld.updateRemoteSettings({guildPositions, guildFolders});
+				BDFDB.LibraryModules.FolderSettingsUtils.saveGuildFolders(guildFolders);
 			}
 			
 			removeFolder (folderId) {
@@ -1117,7 +1138,7 @@ module.exports = (_ => {
 					else guildFolders.push(oldFolder);
 				}
 				for (let folder of guildFolders) for (let fGuildId of folder.guildIds) guildPositions.push(fGuildId);
-				BDFDB.LibraryModules.SettingsUtilsOld.updateRemoteSettings({guildPositions, guildFolders});
+				BDFDB.LibraryModules.FolderSettingsUtils.saveGuildFolders(guildFolders);
 			}
 			
 			addGuildToFolder (folderId, guildId) {
@@ -1132,7 +1153,7 @@ module.exports = (_ => {
 					else if (oldFolder.guildIds[0] != guildId) guildFolders.push(oldFolder);
 				}
 				for (let folder of guildFolders) for (let fGuildId of folder.guildIds) guildPositions.push(fGuildId);
-				BDFDB.LibraryModules.SettingsUtilsOld.updateRemoteSettings({guildPositions, guildFolders});
+				BDFDB.LibraryModules.FolderSettingsUtils.saveGuildFolders(guildFolders);
 			}
 			
 			removeGuildFromFolder (folderId, guildId) {
@@ -1147,7 +1168,7 @@ module.exports = (_ => {
 					else guildFolders.push(oldFolder);
 				}
 				for (let folder of guildFolders) for (let fGuildId of folder.guildIds) guildPositions.push(fGuildId);
-				BDFDB.LibraryModules.SettingsUtilsOld.updateRemoteSettings({guildPositions, guildFolders});
+				BDFDB.LibraryModules.FolderSettingsUtils.saveGuildFolders(guildFolders);
 			}
 
 			createDragPreview (div, event) {
@@ -1177,6 +1198,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Авто: Маркиране като прочетено",
 							foldercontext_mutefolder:			"Без звук папка",
 							foldercontext_removefolder:			"Изтриване на папка",
+							foldercontext_removefolder_confirm:	"Сигурни ли сте, че искате да изтриете папката {{var0}}",
 							modal_colorpicker1:					"Основен цвят на папката",
 							modal_colorpicker2:					"Вторичен цвят на папката",
 							modal_colorpicker3:					"Цвят на подсказка",
@@ -1197,11 +1219,38 @@ module.exports = (_ => {
 							serversubmenu_createfolder:			"Създай папка",
 							serversubmenu_removefromfolder:		"Премахнете сървъра от папката"
 						};
+					case "cs":		// Czech
+						return {
+							foldercontext_autoreadfolder:		"Auto: Označit jako přečtené",
+							foldercontext_mutefolder:			"Ztlumit složku",
+							foldercontext_removefolder:			"Smazat složku",
+							foldercontext_removefolder_confirm:	"Opravdu chcete smazat složku {{var0}}",
+							modal_colorpicker1:					"Barva primární složky",
+							modal_colorpicker2:					"Barva sekundární složky",
+							modal_colorpicker3:					"Barva popisku",
+							modal_colorpicker4:					"Barva fontu",
+							modal_copytooltipcolor:				"Použijte stejnou barvu pro všechny servery ve složce",
+							modal_customclosed:					"Uzavřená ikona",
+							modal_customopen:					"Otevřít ikonu",
+							modal_custompreview:				"Náhled ikony",
+							modal_iconpicker:					"Výběr složky",
+							modal_swapcolor:					"Pro původní složku použijte druhou barvu",
+							modal_tabheader1:					"Složka",
+							modal_tabheader2:					"Barva složky",
+							modal_tabheader3:					"Barva popisku",
+							modal_tabheader4:					"Vlastní ikony",
+							modal_usecloseicon:					"Místo miniserverů použijte uzavřenou ikonu",
+							servercontext_serverfolders:		"Složka serveru",
+							serversubmenu_addtofolder:			"Přidejte server do složky",
+							serversubmenu_createfolder:			"Vytvořit složku",
+							serversubmenu_removefromfolder:		"Odebrat server ze složky"
+						};
 					case "da":		// Danish
 						return {
 							foldercontext_autoreadfolder:		"Auto: Marker som læst",
 							foldercontext_mutefolder:			"Dæmp mappe",
 							foldercontext_removefolder:			"Slet mappe",
+							foldercontext_removefolder_confirm:	"Er du sikker på, at du vil slette mappen {{var0}}",
 							modal_colorpicker1:					"Primær mappefarve",
 							modal_colorpicker2:					"Sekundær mappefarve",
 							modal_colorpicker3:					"Værktøjstipfarve",
@@ -1227,6 +1276,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Auto: Als gelesen markieren",
 							foldercontext_mutefolder:			"Ordner stummschalten",
 							foldercontext_removefolder:			"Ordner löschen",
+							foldercontext_removefolder_confirm:	"Möchtest du den Ordner {{var0}} wirklich löschen?",
 							modal_colorpicker1:					"Primäre Ordnerfarbe",
 							modal_colorpicker2:					"Sekundäre Ordnerfarbe",
 							modal_colorpicker3:					"Tooltipfarbe",
@@ -1252,6 +1302,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Αυτόματο: Επισήμανση ως αναγνωσμένου",
 							foldercontext_mutefolder:			"Σίγαση φακέλου",
 							foldercontext_removefolder:			"Διαγραφή φακέλου",
+							foldercontext_removefolder_confirm:	"Είστε βέβαιοι ότι θέλετε να διαγράψετε τον φάκελο {{var0}}",
 							modal_colorpicker1:					"Κύριο χρώμα φακέλου",
 							modal_colorpicker2:					"Χρώμα δευτερεύοντος φακέλου",
 							modal_colorpicker3:					"Χρώμα επεξήγησης εργαλείου",
@@ -1277,6 +1328,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Automático: marcar como leído",
 							foldercontext_mutefolder:			"Silenciar carpeta",
 							foldercontext_removefolder:			"Eliminar carpeta",
+							foldercontext_removefolder_confirm:	"¿Está seguro de que desea eliminar la carpeta {{var0}}?",
 							modal_colorpicker1:					"Color de carpeta principal",
 							modal_colorpicker2:					"Color de carpeta secundaria",
 							modal_colorpicker3:					"Color de la información sobre herramientas",
@@ -1302,6 +1354,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Automaattinen: Merkitse luetuksi",
 							foldercontext_mutefolder:			"Mykistä kansio",
 							foldercontext_removefolder:			"Poista kansio",
+							foldercontext_removefolder_confirm:	"Haluatko varmasti poistaa kansion {{var0}}",
 							modal_colorpicker1:					"Ensisijaisen kansion väri",
 							modal_colorpicker2:					"Toissijaisen kansion väri",
 							modal_colorpicker3:					"Työkaluvinkin väri",
@@ -1327,6 +1380,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Auto: marquer comme lu",
 							foldercontext_mutefolder:			"Dossier muet",
 							foldercontext_removefolder:			"Supprimer le dossier",
+							foldercontext_removefolder_confirm:	"Êtes-vous sûr de vouloir supprimer le dossier {{var0}}",
 							modal_colorpicker1:					"Couleur du dossier primaire",
 							modal_colorpicker2:					"Couleur du dossier secondaire",
 							modal_colorpicker3:					"Couleur de l'info-bulle",
@@ -1347,11 +1401,38 @@ module.exports = (_ => {
 							serversubmenu_createfolder:			"Créer le dossier",
 							serversubmenu_removefromfolder:		"Supprimer le serveur du dossier"
 						};
+					case "hi":		// Hindi
+						return {
+							foldercontext_autoreadfolder:		"ऑटो: पढ़ें के रूप में चिह्नित करें",
+							foldercontext_mutefolder:			"मूक फ़ोल्डर",
+							foldercontext_removefolder:			"फोल्डर हटा दें",
+							foldercontext_removefolder_confirm:	"क्या आप वाकई फ़ोल्डर को हटाना चाहते हैं {{var0}}",
+							modal_colorpicker1:					"प्राथमिक फ़ोल्डर रंग",
+							modal_colorpicker2:					"माध्यमिक फ़ोल्डर रंग",
+							modal_colorpicker3:					"टूलटिप रंग",
+							modal_colorpicker4:					"लिपि का रंग",
+							modal_copytooltipcolor:				"एक फ़ोल्डर में सभी सर्वरों के लिए एक ही रंग का प्रयोग करें",
+							modal_customclosed:					"बंद चिह्न",
+							modal_customopen:					"खुला चिह्न",
+							modal_custompreview:				"आइकन पूर्वावलोकन",
+							modal_iconpicker:					"फ़ोल्डर चयन",
+							modal_swapcolor:					"मूल फ़ोल्डर के लिए दूसरे रंग का प्रयोग करें",
+							modal_tabheader1:					"फ़ोल्डर",
+							modal_tabheader2:					"फ़ोल्डर का रंग",
+							modal_tabheader3:					"टूलटिप रंग",
+							modal_tabheader4:					"कस्टम चिह्न",
+							modal_usecloseicon:					"मिनी-सर्वर के बजाय बंद चिह्न का उपयोग करें",
+							servercontext_serverfolders:		"सर्वर फ़ोल्डर",
+							serversubmenu_addtofolder:			"सर्वर को फ़ोल्डर में जोड़ें",
+							serversubmenu_createfolder:			"फोल्डर बनाएं",
+							serversubmenu_removefromfolder:		"फ़ोल्डर से सर्वर निकालें"
+						};
 					case "hr":		// Croatian
 						return {
 							foldercontext_autoreadfolder:		"Automatski: Označi kao pročitano",
 							foldercontext_mutefolder:			"Isključi mapu",
 							foldercontext_removefolder:			"Izbriši mapu",
+							foldercontext_removefolder_confirm:	"Jeste li sigurni da želite izbrisati mapu {{var0}}",
 							modal_colorpicker1:					"Boja primarne mape",
 							modal_colorpicker2:					"Boja sekundarne mape",
 							modal_colorpicker3:					"Boja opisa",
@@ -1377,6 +1458,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Automatikus: Megjelölés olvasottként",
 							foldercontext_mutefolder:			"Mappa némítása",
 							foldercontext_removefolder:			"Mappa törlése",
+							foldercontext_removefolder_confirm:	"Biztosan törli a(z) {{var0}} mappát?",
 							modal_colorpicker1:					"Elsődleges mappa színe",
 							modal_colorpicker2:					"Másodlagos mappa színe",
 							modal_colorpicker3:					"Eszköztár színe",
@@ -1402,6 +1484,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Auto: contrassegna come letto",
 							foldercontext_mutefolder:			"Disattiva cartella",
 							foldercontext_removefolder:			"Elimina cartella",
+							foldercontext_removefolder_confirm:	"Sei sicuro di voler eliminare la cartella {{var0}}",
 							modal_colorpicker1:					"Colore cartella principale",
 							modal_colorpicker2:					"Colore cartella secondaria",
 							modal_colorpicker3:					"Colore della descrizione comando",
@@ -1427,6 +1510,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"自動：既読としてマーク",
 							foldercontext_mutefolder:			"ミュートフォルダ",
 							foldercontext_removefolder:			"フォルダを削除",
+							foldercontext_removefolder_confirm:	"本当にフォルダ {{var0}} を削除しますか?",
 							modal_colorpicker1:					"プライマリフォルダの色",
 							modal_colorpicker2:					"セカンダリフォルダの色",
 							modal_colorpicker3:					"ツールチップの色",
@@ -1452,6 +1536,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"자동 : 읽은 상태로 표시",
 							foldercontext_mutefolder:			"폴더 음소거",
 							foldercontext_removefolder:			"폴더 삭제",
+							foldercontext_removefolder_confirm:	"{{var0}} 폴더를 삭제하시겠습니까?",
 							modal_colorpicker1:					"기본 폴더 색상",
 							modal_colorpicker2:					"보조 폴더 색상",
 							modal_colorpicker3:					"툴팁 색상",
@@ -1477,6 +1562,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Automatinis: pažymėti kaip perskaitytą",
 							foldercontext_mutefolder:			"Nutildyti aplanką",
 							foldercontext_removefolder:			"Ištrinti aplanką",
+							foldercontext_removefolder_confirm:	"Ar tikrai norite ištrinti aplanką {{var0}}",
 							modal_colorpicker1:					"Pagrindinio aplanko spalva",
 							modal_colorpicker2:					"Antrinio aplanko spalva",
 							modal_colorpicker3:					"Patarimo spalva",
@@ -1502,6 +1588,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Auto: Markeer als gelezen",
 							foldercontext_mutefolder:			"Mute map",
 							foldercontext_removefolder:			"Verwijder map",
+							foldercontext_removefolder_confirm:	"Weet u zeker dat u de map {{var0}} wilt verwijderen",
 							modal_colorpicker1:					"Kleur primaire map",
 							modal_colorpicker2:					"Kleur secundaire map",
 							modal_colorpicker3:					"Tooltipkleur",
@@ -1527,6 +1614,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Auto: Merk som lest",
 							foldercontext_mutefolder:			"Demp mappe",
 							foldercontext_removefolder:			"Slett mappe",
+							foldercontext_removefolder_confirm:	"Er du sikker på at du vil slette mappen {{var0}}",
 							modal_colorpicker1:					"Primær mappefarge",
 							modal_colorpicker2:					"Sekundær mappefarge",
 							modal_colorpicker3:					"Verktøytipsfarge",
@@ -1552,6 +1640,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Auto: oznacz jako przeczytane",
 							foldercontext_mutefolder:			"Wycisz folder",
 							foldercontext_removefolder:			"Usunięty folder",
+							foldercontext_removefolder_confirm:	"Czy na pewno chcesz usunąć folder {{var0}}",
 							modal_colorpicker1:					"Główny kolor folderu",
 							modal_colorpicker2:					"Kolor folderu dodatkowego",
 							modal_colorpicker3:					"Kolor podpowiedzi",
@@ -1577,6 +1666,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Auto: Marcar como lido",
 							foldercontext_mutefolder:			"Pasta sem som",
 							foldercontext_removefolder:			"Excluir pasta",
+							foldercontext_removefolder_confirm:	"Tem certeza de que deseja excluir a pasta {{var0}}",
 							modal_colorpicker1:					"Cor da pasta primária",
 							modal_colorpicker2:					"Cor secundária da pasta",
 							modal_colorpicker3:					"Cor da dica de ferramenta",
@@ -1602,6 +1692,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Automat: marcați ca citit",
 							foldercontext_mutefolder:			"Dezactivați folderul",
 							foldercontext_removefolder:			"Ștergeți folderul",
+							foldercontext_removefolder_confirm:	"Sigur doriți să ștergeți dosarul {{var0}}",
 							modal_colorpicker1:					"Culoarea folderului principal",
 							modal_colorpicker2:					"Culoare dosar secundar",
 							modal_colorpicker3:					"Culoarea sfatului de instrumente",
@@ -1627,6 +1718,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Авто: Отметить как прочитанное",
 							foldercontext_mutefolder:			"Отключить папку",
 							foldercontext_removefolder:			"Удалить папку",
+							foldercontext_removefolder_confirm:	"Вы уверены, что хотите удалить папку {{var0}}",
 							modal_colorpicker1:					"Цвет основной папки",
 							modal_colorpicker2:					"Цвет вторичной папки",
 							modal_colorpicker3:					"Цвет всплывающей подсказки",
@@ -1652,6 +1744,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Auto: Markera som läst",
 							foldercontext_mutefolder:			"Tyst mapp",
 							foldercontext_removefolder:			"Ta bort mapp",
+							foldercontext_removefolder_confirm:	"Är du säker på att du vill ta bort mappen {{var0}}",
 							modal_colorpicker1:					"Primär mappfärg",
 							modal_colorpicker2:					"Sekundär mappfärg",
 							modal_colorpicker3:					"Verktygstipsfärg",
@@ -1677,6 +1770,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"อัตโนมัติ: ทำเครื่องหมายว่าอ่านแล้ว",
 							foldercontext_mutefolder:			"ปิดเสียงโฟลเดอร์",
 							foldercontext_removefolder:			"ลบโฟลเดอร์",
+							foldercontext_removefolder_confirm:	"คุณแน่ใจหรือว่าต้องการลบโฟลเดอร์ {{var0}}",
 							modal_colorpicker1:					"สีโฟลเดอร์หลัก",
 							modal_colorpicker2:					"สีโฟลเดอร์รอง",
 							modal_colorpicker3:					"สีคำแนะนำเครื่องมือ",
@@ -1702,6 +1796,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Otomatik: Okundu olarak işaretle",
 							foldercontext_mutefolder:			"Klasörü sessize al",
 							foldercontext_removefolder:			"Klasörü sil",
+							foldercontext_removefolder_confirm:	"{{var0}} Klasörünü silmek istediğinizden emin misiniz?",
 							modal_colorpicker1:					"Birincil klasör rengi",
 							modal_colorpicker2:					"İkincil klasör rengi",
 							modal_colorpicker3:					"Araç ipucu rengi",
@@ -1727,6 +1822,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Авто: Позначити як прочитане",
 							foldercontext_mutefolder:			"Вимкнути папку",
 							foldercontext_removefolder:			"Видалити папку",
+							foldercontext_removefolder_confirm:	"Ви впевнені, що хочете видалити папку {{var0}}",
 							modal_colorpicker1:					"Основний колір папки",
 							modal_colorpicker2:					"Колір вторинної папки",
 							modal_colorpicker3:					"Колір підказки",
@@ -1752,6 +1848,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Tự động: Đánh dấu là đã đọc",
 							foldercontext_mutefolder:			"Thư mục ẩn",
 							foldercontext_removefolder:			"Xóa thư mục",
+							foldercontext_removefolder_confirm:	"Bạn có chắc chắn muốn xóa Thư mục {{var0}} không",
 							modal_colorpicker1:					"Màu thư mục chính",
 							modal_colorpicker2:					"Màu thư mục phụ",
 							modal_colorpicker3:					"Màu chú giải công cụ",
@@ -1777,6 +1874,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"自动：标记为已读",
 							foldercontext_mutefolder:			"静音文件夹",
 							foldercontext_removefolder:			"删除文件夹",
+							foldercontext_removefolder_confirm:	"您确定要删除文件夹 {{var0}}",
 							modal_colorpicker1:					"文件夹主色",
 							modal_colorpicker2:					"文件夹辅色",
 							modal_colorpicker3:					"工具提示颜色",
@@ -1802,6 +1900,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"自動：標記為已讀",
 							foldercontext_mutefolder:			"靜音資料夾",
 							foldercontext_removefolder:			"刪除資料夾",
+							foldercontext_removefolder_confirm:	"您確定要刪除文件夾 {{var0}}",
 							modal_colorpicker1:					"資料夾主色",
 							modal_colorpicker2:					"資料夾輔色",
 							modal_colorpicker3:					"工具提示顏色",
@@ -1827,6 +1926,7 @@ module.exports = (_ => {
 							foldercontext_autoreadfolder:		"Auto: Mark As Read",
 							foldercontext_mutefolder:			"Mute Folder",
 							foldercontext_removefolder:			"Delete Folder",
+							foldercontext_removefolder_confirm:	"Are you sure you want to delete the Folder {{var0}}",
 							modal_colorpicker1:					"Primary Folder Color",
 							modal_colorpicker2:					"Secondary Folder Color",
 							modal_colorpicker3:					"Tooltip Color",
@@ -1850,5 +1950,5 @@ module.exports = (_ => {
 				}
 			}
 		};
-	})(window.BDFDB_Global.PluginUtils.buildPlugin(config));
+	})(window.BDFDB_Global.PluginUtils.buildPlugin(changeLog));
 })();

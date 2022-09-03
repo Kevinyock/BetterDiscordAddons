@@ -2,7 +2,7 @@
  * @name RemoveBlockedUsers
  * @author DevilBro
  * @authorId 278543574059057154
- * @version 1.4.9
+ * @version 1.5.2
  * @description Removes blocked Messages/Users
  * @invite Jx3TjNS
  * @donate https://www.paypal.me/MircoWittrien
@@ -13,25 +13,16 @@
  */
 
 module.exports = (_ => {
-	const config = {
-		"info": {
-			"name": "RemoveBlockedUsers",
-			"author": "DevilBro",
-			"version": "1.4.9",
-			"description": "Removes blocked Messages/Users"
-		},
-		"changeLog": {
-			"fixed": {
-				"Stage/Voice": "No longer shows blocked Users in the VC Count and Stage Channel Members"
-			}
-		}
+	const changeLog = {
+		
 	};
 
 	return !window.BDFDB_Global || (!window.BDFDB_Global.loaded && !window.BDFDB_Global.started) ? class {
-		getName () {return config.info.name;}
-		getAuthor () {return config.info.author;}
-		getVersion () {return config.info.version;}
-		getDescription () {return `The Library Plugin needed for ${config.info.name} is missing. Open the Plugin Settings to download it. \n\n${config.info.description}`;}
+		constructor (meta) {for (let key in meta) this[key] = meta[key];}
+		getName () {return this.name;}
+		getAuthor () {return this.author;}
+		getVersion () {return this.version;}
+		getDescription () {return `The Library Plugin needed for ${this.name} is missing. Open the Plugin Settings to download it. \n\n${this.description}`;}
 		
 		downloadLibrary () {
 			require("request").get("https://mwittrien.github.io/BetterDiscordAddons/Library/0BDFDB.plugin.js", (e, r, b) => {
@@ -44,7 +35,7 @@ module.exports = (_ => {
 			if (!window.BDFDB_Global || !Array.isArray(window.BDFDB_Global.pluginQueue)) window.BDFDB_Global = Object.assign({}, window.BDFDB_Global, {pluginQueue: []});
 			if (!window.BDFDB_Global.downloadModal) {
 				window.BDFDB_Global.downloadModal = true;
-				BdApi.showConfirmationModal("Library Missing", `The Library Plugin needed for ${config.info.name} is missing. Please click "Download Now" to install it.`, {
+				BdApi.showConfirmationModal("Library Missing", `The Library Plugin needed for ${this.name} is missing. Please click "Download Now" to install it.`, {
 					confirmText: "Download Now",
 					cancelText: "Cancel",
 					onCancel: _ => {delete window.BDFDB_Global.downloadModal;},
@@ -54,13 +45,13 @@ module.exports = (_ => {
 					}
 				});
 			}
-			if (!window.BDFDB_Global.pluginQueue.includes(config.info.name)) window.BDFDB_Global.pluginQueue.push(config.info.name);
+			if (!window.BDFDB_Global.pluginQueue.includes(this.name)) window.BDFDB_Global.pluginQueue.push(this.name);
 		}
 		start () {this.load();}
 		stop () {}
 		getSettingsPanel () {
 			let template = document.createElement("template");
-			template.innerHTML = `<div style="color: var(--header-primary); font-size: 16px; font-weight: 300; white-space: pre; line-height: 22px;">The Library Plugin needed for ${config.info.name} is missing.\nPlease click <a style="font-weight: 500;">Download Now</a> to install it.</div>`;
+			template.innerHTML = `<div style="color: var(--header-primary); font-size: 16px; font-weight: 300; white-space: pre; line-height: 22px;">The Library Plugin needed for ${this.name} is missing.\nPlease click <a style="font-weight: 500;">Download Now</a> to install it.</div>`;
 			template.content.firstElementChild.querySelector("a").addEventListener("click", this.downloadLibrary);
 			return template.content.firstElementChild;
 		}
@@ -81,6 +72,7 @@ module.exports = (_ => {
 						replies:			{value: true, 	description: "Replies"},
 						mentions:			{value: true, 	description: "Mentions"},
 						reactions:			{value: true, 	description: "Reactions"},
+						threads:			{value: true, 	description: "Threads"},
 						autocompletes:		{value: true, 	description: "Autocomplete Entries"},
 						memberList:			{value: true, 	description: "Members in List"},
 						voiceList:			{value: true, 	description: "Members in Voice List"},
@@ -111,6 +103,7 @@ module.exports = (_ => {
 						Messages: "type",
 						SearchResultsInner: "default",
 						Reactions: "render",
+						ActiveThread: "type",
 						ConnectedChannelMembers: "default",
 						MemberListItem: "render",
 						NowPlayingItem: "default",
@@ -176,7 +169,7 @@ module.exports = (_ => {
 				let connectedUsers = BDFDB.ObjectUtils.filter(BDFDB.LibraryModules.VoiceUtils.getVoiceStates(BDFDB.LibraryModules.CurrentVoiceUtils.getGuildId()), n => n && n.channelId == channelId && !BDFDB.LibraryModules.RelationshipStore.isBlocked(n.userId));
 				BDFDB.PatchUtils.patch(this, BDFDB.LibraryModules.SoundUtils, "playSound", {instead: e => {
 					let type = e.methodArguments[0];
-					if (this.settings.notifcations.voiceChat && type == "user_join" || type == "user_leave" || type == "user_moved") {
+					if (this.settings.notifcations.voiceChat && (type == "disconnect" || type == "user_join" || type == "user_leave" || type == "user_moved")) {
 						channelId = BDFDB.LibraryModules.CurrentVoiceUtils.getChannelId();
 						if (channelId) {
 							let allConnectedUsers = BDFDB.ObjectUtils.filter(BDFDB.LibraryModules.VoiceUtils.getVoiceStates(BDFDB.LibraryModules.CurrentVoiceUtils.getGuildId()), n => n && n.channelId == channelId);
@@ -195,7 +188,10 @@ module.exports = (_ => {
 							else e.callOriginalMethodAfterwards();
 							connectedUsers = unblockedUsers;
 						}
-						else e.callOriginalMethodAfterwards();
+						else {
+							connectedUsers = {};
+							e.callOriginalMethodAfterwards();
+						}
 					}
 					else e.callOriginalMethodAfterwards();
 				}});
@@ -366,6 +362,15 @@ module.exports = (_ => {
 				if (this.settings.places.reactions && BDFDB.ArrayUtils.is(e.instance.props.reactors)) e.instance.props.reactors = e.instance.props.reactors.filter(n => !n || !BDFDB.LibraryModules.RelationshipStore.isBlocked(n.id));
 			}
 			
+			processActiveThread (e) {
+				if (!this.settings.places.threads) return;
+				let [children, index] = BDFDB.ReactUtils.findParent(e.returnvalue, {filter: n => n && n.type && n.type.toString().indexOf(".getMostRecentMessage") > -1});
+				if (index > -1 && children[index].props && children[index].props.channel) {
+					let message = BDFDB.LibraryModules.MessageStore.getMessage(children[index].props.channel.id, children[index].props.channel.lastMessageId);
+					if (message && BDFDB.LibraryModules.RelationshipStore.isBlocked(message.author.id)) children[index] = null;
+				}
+			}
+			
 			processConnectedChannelMembers (e) {
 				if (!this.settings.places.memberList) return;
 				let channelMembers = BDFDB.ReactUtils.findChild(e.returnvalue, {name: "ChannelMembers"});
@@ -400,29 +405,24 @@ module.exports = (_ => {
 					}
 					for (let i in newRows) if (newRows[i] && newRows[i].type == "GROUP" && newRows[i].count <= 0) newRows[i] = undefined;
 					const removeEmptyWithin = (array, filter) => {
-						let reversed = [].concat(array).reverse();
-						let prefixLength = 0, suffixLength = 0;
-						for (let i in array) if (array[i] !== undefined) {
-							prefixLength = parseInt(i);
-							break;
-						}
+						let reversed = [].concat(array).reverse(), suffixLength = 0;
 						for (let i in reversed) if (reversed[i] !== undefined) {
 							suffixLength = parseInt(i);
 							break;
 						}
-						return [].concat(new Array(prefixLength), array.filter(filter), new Array(suffixLength))
+						return [].concat(array.filter(filter), new Array(suffixLength))
 					};
 					channelMembers.props.rows = removeEmptyWithin(newRows, n => n);
 					channelMembers.props.groups = removeEmptyWithin(newGroups, g => g && g.count > 0);
 				}
 			}
 			
-			processPrivateChannelRecipients (e) {
-				if (this.settings.places.voiceChat && e.instance.props.channel && e.instance.props.channel.isGroupDM()) e.instance.props.channel = new BDFDB.DiscordObjects.Channel(Object.assign({}, e.instance.props.channel, {rawRecipients: e.instance.props.channel.rawRecipients.filter(n => !n || !BDFDB.LibraryModules.RelationshipStore.isBlocked(n.id)), recipients: e.instance.props.channel.recipients.filter(id => !id || !BDFDB.LibraryModules.RelationshipStore.isBlocked(id))}));
-			}
-			
 			processMemberListItem (e) {
 				if (this.settings.places.memberList && e.instance.props.user && BDFDB.LibraryModules.RelationshipStore.isBlocked(e.instance.props.user.id)) return null;
+			}
+			
+			processPrivateChannelRecipients (e) {
+				if (this.settings.places.voiceChat && e.instance.props.channel && e.instance.props.channel.isGroupDM()) e.instance.props.channel = new BDFDB.DiscordObjects.Channel(Object.assign({}, e.instance.props.channel, {rawRecipients: e.instance.props.channel.rawRecipients.filter(n => !n || !BDFDB.LibraryModules.RelationshipStore.isBlocked(n.id)), recipients: e.instance.props.channel.recipients.filter(id => !id || !BDFDB.LibraryModules.RelationshipStore.isBlocked(id))}));
 			}
 
 			processNowPlayingItem (e) {
@@ -450,7 +450,11 @@ module.exports = (_ => {
 			processChannelItem (e) {
 				if (this.settings.places.voiceList) {
 					let channelInfo = BDFDB.ReactUtils.findChild(e.instance.props.children, {props: [["className", BDFDB.disCN.channelinfo]]});
-					if (channelInfo && channelInfo.props && channelInfo.props.children && channelInfo.props.children.props && BDFDB.ArrayUtils.is(channelInfo.props.children.props.voiceStates)) channelInfo.props.children.props.voiceStates = [].concat(channelInfo.props.children.props.voiceStates).filter(n => !n.user || !BDFDB.LibraryModules.RelationshipStore.isBlocked(n.user.id));
+					if (channelInfo && channelInfo.props && channelInfo.props.children && channelInfo.props.children.props && BDFDB.ArrayUtils.is(channelInfo.props.children.props.voiceStates)) {
+						let newVoiceStates = [].concat(channelInfo.props.children.props.voiceStates).filter(n => !n.user || !BDFDB.LibraryModules.RelationshipStore.isBlocked(n.user.id));
+						if (channelInfo.props.children.props.channel.userLimit) channelInfo.props.children.props.channel = new BDFDB.DiscordObjects.Channel(Object.assign({}, channelInfo.props.children.props.channel, {userLimit: channelInfo.props.children.props.channel.userLimit - (channelInfo.props.children.props.voiceStates.length - newVoiceStates.length)}));
+						channelInfo.props.children.props.voiceStates = newVoiceStates;
+					}
 				}
 			}
 		
@@ -550,5 +554,5 @@ module.exports = (_ => {
 				return recipients.length > 0 ? recipients.map(u => u.toString()).join(", ") : BDFDB.LanguageUtils.LanguageStrings.UNNAMED;
 			}
 		};
-	})(window.BDFDB_Global.PluginUtils.buildPlugin(config));
+	})(window.BDFDB_Global.PluginUtils.buildPlugin(changeLog));
 })();

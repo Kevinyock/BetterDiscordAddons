@@ -2,7 +2,7 @@
  * @name GameActivityToggle
  * @author DevilBro
  * @authorId 278543574059057154
- * @version 1.1.3
+ * @version 1.1.4
  * @description Adds a Quick-Toggle Game Activity Button
  * @invite Jx3TjNS
  * @donate https://www.paypal.me/MircoWittrien
@@ -13,25 +13,16 @@
  */
 
 module.exports = (_ => {
-	const config = {
-		"info": {
-			"name": "GameActivityToggle",
-			"author": "DevilBro",
-			"version": "1.1.3",
-			"description": "Adds a Quick-Toggle Game Activity Button"
-		},
-		"changeLog": {
-			"improved": {
-				"Menu Item Option": "Now allows you to add a Context Menu Item to the new User Account Popup in the bottom left"
-			}
-		}
+	const changeLog = {
+		
 	};
 	
 	return !window.BDFDB_Global || (!window.BDFDB_Global.loaded && !window.BDFDB_Global.started) ? class {
-		getName () {return config.info.name;}
-		getAuthor () {return config.info.author;}
-		getVersion () {return config.info.version;}
-		getDescription () {return `The Library Plugin needed for ${config.info.name} is missing. Open the Plugin Settings to download it. \n\n${config.info.description}`;}
+		constructor (meta) {for (let key in meta) this[key] = meta[key];}
+		getName () {return this.name;}
+		getAuthor () {return this.author;}
+		getVersion () {return this.version;}
+		getDescription () {return `The Library Plugin needed for ${this.name} is missing. Open the Plugin Settings to download it. \n\n${this.description}`;}
 		
 		downloadLibrary () {
 			require("request").get("https://mwittrien.github.io/BetterDiscordAddons/Library/0BDFDB.plugin.js", (e, r, b) => {
@@ -44,7 +35,7 @@ module.exports = (_ => {
 			if (!window.BDFDB_Global || !Array.isArray(window.BDFDB_Global.pluginQueue)) window.BDFDB_Global = Object.assign({}, window.BDFDB_Global, {pluginQueue: []});
 			if (!window.BDFDB_Global.downloadModal) {
 				window.BDFDB_Global.downloadModal = true;
-				BdApi.showConfirmationModal("Library Missing", `The Library Plugin needed for ${config.info.name} is missing. Please click "Download Now" to install it.`, {
+				BdApi.showConfirmationModal("Library Missing", `The Library Plugin needed for ${this.name} is missing. Please click "Download Now" to install it.`, {
 					confirmText: "Download Now",
 					cancelText: "Cancel",
 					onCancel: _ => {delete window.BDFDB_Global.downloadModal;},
@@ -54,13 +45,13 @@ module.exports = (_ => {
 					}
 				});
 			}
-			if (!window.BDFDB_Global.pluginQueue.includes(config.info.name)) window.BDFDB_Global.pluginQueue.push(config.info.name);
+			if (!window.BDFDB_Global.pluginQueue.includes(this.name)) window.BDFDB_Global.pluginQueue.push(this.name);
 		}
 		start () {this.load();}
 		stop () {}
 		getSettingsPanel () {
 			let template = document.createElement("template");
-			template.innerHTML = `<div style="color: var(--header-primary); font-size: 16px; font-weight: 300; white-space: pre; line-height: 22px;">The Library Plugin needed for ${config.info.name} is missing.\nPlease click <a style="font-weight: 500;">Download Now</a> to install it.</div>`;
+			template.innerHTML = `<div style="color: var(--header-primary); font-size: 16px; font-weight: 300; white-space: pre; line-height: 22px;">The Library Plugin needed for ${this.name} is missing.\nPlease click <a style="font-weight: 500;">Download Now</a> to install it.</div>`;
 			template.content.firstElementChild.querySelector("a").addEventListener("click", this.downloadLibrary);
 			return template.content.firstElementChild;
 		}
@@ -73,7 +64,7 @@ module.exports = (_ => {
 				toggleButton = this;
 			}
 			render() {
-				const enabled = this.props.forceState != undefined ? this.props.forceState : BDFDB.DiscordUtils.getSettings("ShowCurrentGame");
+				const enabled = this.props.forceState != undefined ? this.props.forceState : BDFDB.LibraryModules.SettingsUtils.ShowCurrentGame.getSetting();
 				delete this.props.forceState;
 				return BDFDB.ReactUtils.createElement(BDFDB.LibraryComponents.PanelButton, Object.assign({}, this.props, {
 					tooltipText: enabled ? _this.labels.disable_activity : _this.labels.enable_activity,
@@ -129,13 +120,13 @@ module.exports = (_ => {
 			
 			onStart () {
 				let cachedState = BDFDB.DataUtils.load(this, "cachedState");
-				let state = BDFDB.DiscordUtils.getSettings("ShowCurrentGame");
+				let state = BDFDB.LibraryModules.SettingsUtils.ShowCurrentGame.getSetting();
 				if (!cachedState.date || (new Date() - cachedState.date) > 1000*60*60*24*3) {
 					cachedState.value = state;
 					cachedState.date = new Date();
 					BDFDB.DataUtils.save(cachedState, this, "cachedState");
 				}
-				else if (cachedState.value != null && cachedState.value != state) BDFDB.DiscordUtils.setSettings("ShowCurrentGame", cachedState.value);
+				else if (cachedState.value != null && cachedState.value != state) BDFDB.LibraryModules.SettingsUtils.ShowCurrentGame.updateSetting(cachedState.value);
 				
 				if (BDFDB.LibraryModules.SettingsUtils) BDFDB.PatchUtils.patch(this, BDFDB.LibraryModules.SettingsUtils.ShowCurrentGame, "updateSetting", {after: e => {
 					if (toggleButton) toggleButton.props.forceState = e.methodArguments[0];
@@ -217,7 +208,7 @@ module.exports = (_ => {
 				if (oldIndex == -1) {
 					let [children, index] = BDFDB.ContextMenuUtils.findItem(e.instance, {id: ["custom-status", "set-custom-status", "edit-custom-status"]});
 					if (index > -1) {
-						let isChecked = BDFDB.DiscordUtils.getSettings("ShowCurrentGame");
+						let isChecked = BDFDB.LibraryModules.SettingsUtils.ShowCurrentGame.getSetting();
 						children.push(BDFDB.ContextMenuUtils.createItem(BDFDB.LibraryComponents.MenuItems.MenuCheckboxItem, {
 							label: BDFDB.LanguageUtils.LanguageStrings.ACTIVITY_STATUS,
 							id: BDFDB.ContextMenuUtils.createItemId(this.name, "activity-toggle"),
@@ -247,9 +238,9 @@ module.exports = (_ => {
 			}
 			
 			toggle () {
-				const shouldEnable = !BDFDB.DiscordUtils.getSettings("ShowCurrentGame");
+				const shouldEnable = !BDFDB.LibraryModules.SettingsUtils.ShowCurrentGame.getSetting();
 				_this.settings.general[shouldEnable ? "playEnable" : "playDisable"] && BDFDB.LibraryModules.SoundUtils.playSound(_this.settings.selections[shouldEnable ? "enableSound" : "disableSound"], .4);
-				BDFDB.DiscordUtils.setSettings("ShowCurrentGame", shouldEnable);
+				BDFDB.LibraryModules.SettingsUtils.ShowCurrentGame.updateSetting(shouldEnable);
 			}
 
 			setLabelsByLanguage () {
@@ -392,5 +383,5 @@ module.exports = (_ => {
 				}
 			}
 		};
-	})(window.BDFDB_Global.PluginUtils.buildPlugin(config));
+	})(window.BDFDB_Global.PluginUtils.buildPlugin(changeLog));
 })();

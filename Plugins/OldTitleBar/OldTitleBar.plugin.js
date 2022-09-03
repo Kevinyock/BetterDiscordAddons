@@ -2,7 +2,7 @@
  * @name OldTitleBar
  * @author DevilBro
  * @authorId 278543574059057154
- * @version 1.7.3
+ * @version 1.7.5
  * @description Allows you to switch to Discord's old Titlebar
  * @invite Jx3TjNS
  * @donate https://www.paypal.me/MircoWittrien
@@ -13,20 +13,16 @@
  */
 
 module.exports = (_ => {
-	const config = {
-		"info": {
-			"name": "OldTitleBar",
-			"author": "DevilBro",
-			"version": "1.7.3",
-			"description": "Allows you to switch to Discord's old Titlebar"
-		}
+	const changeLog = {
+		
 	};
 
 	return !window.BDFDB_Global || (!window.BDFDB_Global.loaded && !window.BDFDB_Global.started) ? class {
-		getName () {return config.info.name;}
-		getAuthor () {return config.info.author;}
-		getVersion () {return config.info.version;}
-		getDescription () {return `The Library Plugin needed for ${config.info.name} is missing. Open the Plugin Settings to download it. \n\n${config.info.description}`;}
+		constructor (meta) {for (let key in meta) this[key] = meta[key];}
+		getName () {return this.name;}
+		getAuthor () {return this.author;}
+		getVersion () {return this.version;}
+		getDescription () {return `The Library Plugin needed for ${this.name} is missing. Open the Plugin Settings to download it. \n\n${this.description}`;}
 		
 		downloadLibrary () {
 			require("request").get("https://mwittrien.github.io/BetterDiscordAddons/Library/0BDFDB.plugin.js", (e, r, b) => {
@@ -39,7 +35,7 @@ module.exports = (_ => {
 			if (!window.BDFDB_Global || !Array.isArray(window.BDFDB_Global.pluginQueue)) window.BDFDB_Global = Object.assign({}, window.BDFDB_Global, {pluginQueue: []});
 			if (!window.BDFDB_Global.downloadModal) {
 				window.BDFDB_Global.downloadModal = true;
-				BdApi.showConfirmationModal("Library Missing", `The Library Plugin needed for ${config.info.name} is missing. Please click "Download Now" to install it.`, {
+				BdApi.showConfirmationModal("Library Missing", `The Library Plugin needed for ${this.name} is missing. Please click "Download Now" to install it.`, {
 					confirmText: "Download Now",
 					cancelText: "Cancel",
 					onCancel: _ => {delete window.BDFDB_Global.downloadModal;},
@@ -49,13 +45,13 @@ module.exports = (_ => {
 					}
 				});
 			}
-			if (!window.BDFDB_Global.pluginQueue.includes(config.info.name)) window.BDFDB_Global.pluginQueue.push(config.info.name);
+			if (!window.BDFDB_Global.pluginQueue.includes(this.name)) window.BDFDB_Global.pluginQueue.push(this.name);
 		}
 		start () {this.load();}
 		stop () {}
 		getSettingsPanel () {
 			let template = document.createElement("template");
-			template.innerHTML = `<div style="color: var(--header-primary); font-size: 16px; font-weight: 300; white-space: pre; line-height: 22px;">The Library Plugin needed for ${config.info.name} is missing.\nPlease click <a style="font-weight: 500;">Download Now</a> to install it.</div>`;
+			template.innerHTML = `<div style="color: var(--header-primary); font-size: 16px; font-weight: 300; white-space: pre; line-height: 22px;">The Library Plugin needed for ${this.name} is missing.\nPlease click <a style="font-weight: 500;">Download Now</a> to install it.</div>`;
 			template.content.firstElementChild.querySelector("a").addEventListener("click", this.downloadLibrary);
 			return template.content.firstElementChild;
 		}
@@ -113,7 +109,10 @@ module.exports = (_ => {
 						iconSVG: `<svg width="26" height="26"><path stroke-width="2" stroke="currentColor" fill="none" d="M6 6 l13 13 m0 -13 l-13 13"/></svg>`
 					})
 				}));
-				return BDFDB.ReactUtils.createElement(BDFDB.ReactUtils.Fragment, {children: children});
+				return BDFDB.ReactUtils.createElement("div", {
+					className: BDFDB.disCN._oldtitlebartoolbar,
+					children: children
+				});
 			}
 		};
 		
@@ -135,7 +134,7 @@ module.exports = (_ => {
 					after: {
 						App: "render",
 						AppSkeleton: "render",
-						StandardSidebarView: "render",
+						StandardSidebarView: "default",
 						AuthWrapper: "render"
 					}
 				};
@@ -160,8 +159,14 @@ module.exports = (_ => {
 					}
 					
 					${BDFDB.dotCN._oldtitlebartoolbar} {
-						flex: 1 1 auto;
+						display: flex;
+						flex: 1 0 auto;
 						justify-content: flex-end;
+					}
+					
+					${BDFDB.dotCNS.chatthreadsidebaropen + BDFDB.dotCN._oldtitlebartoolbar},
+					${BDFDB.dotCNS.callcurrentchatsidebaropen + BDFDB.dotCN._oldtitlebartoolbar} {
+						display: none;
 					}
 
 					${BDFDB.dotCN._oldtitlebarsettingstoolbar} {
@@ -244,11 +249,11 @@ module.exports = (_ => {
 			processAppSkeleton (e) {
 				this.processApp(e);
 			}
-
+			
 			processHeaderBar (e) {
 				let wrapper = BDFDB.ReactUtils.findChild(e.instance, {props: ["toolbar", "children"]});
 				if (!wrapper) return;
-				let children = BDFDB.ObjectUtils.get(wrapper, "props.toolbar.props.children");
+				let children = BDFDB.ArrayUtils.is(wrapper.props.toolbar) ? wrapper.props.toolbar : BDFDB.ObjectUtils.get(wrapper, "props.toolbar.props.children");
 				if (!children) {
 					children = [];
 					wrapper.props.toolbar = [
@@ -260,8 +265,10 @@ module.exports = (_ => {
 			}
 
 			processStandardSidebarView (e) {
-				if (!BDFDB.ArrayUtils.is(e.returnvalue.props.children)) e.returnvalue.props.children = [e.returnvalue.props.children];
-				this.injectSettingsToolbar(e.returnvalue.props.children);
+				let sidebarView = BDFDB.ReactUtils.findChild(e.returnvalue, {props: [["className", BDFDB.disCN.settingswindowstandardsidebarview]]});
+				if (!sidebarView) return;
+				if (!BDFDB.ArrayUtils.is(sidebarView.props.children)) sidebarView.props.children = [sidebarView.props.children];
+				this.injectSettingsToolbar(sidebarView.props.children);
 			}
 
 			processAuthWrapper (e) {
@@ -319,5 +326,5 @@ module.exports = (_ => {
 				return {x: window.screenX, y: window.screenY, width: window.outerWidth, height: window.outerHeight};
 			}
 		};
-	})(window.BDFDB_Global.PluginUtils.buildPlugin(config));
+	})(window.BDFDB_Global.PluginUtils.buildPlugin(changeLog));
 })();
